@@ -1,58 +1,61 @@
-# NetGuard-AI 🛡️
-> AI-powered Network Intrusion Detection System
+# NetGuard-AI Gateway
 
-## Overview
-Real-time network intrusion detection system using Zeek for packet capture
-and Machine Learning for threat classification.
+> Network Intrusion Detection System — Gateway Mode  
+> Monitors all home network traffic via Ubuntu NAT Gateway
 
 ## Architecture
-Network Traffic
+Internet
 ↓
-Zeek 8.x (Feature Extraction)
+Main Router (192.168.68.55)
 ↓
-Python ML Pipeline
+Ubuntu Gateway (192.168.68.13)
+├── Zeek 8.2.0        — Traffic capture
+├── collector.py      — Parse + filter + store
+├── window_engine.py  — Behavioral features
+├── anomaly_model.py  — Isolation Forest
+├── signature_model.py— XGBoost
+└── risk_engine.py    — Risk Score 0-100
 ↓
-Threat Classification
+TP-Link Access Point
+↓
+Home Devices (192.168.1.x)
 
-## Tech Stack
-- **Capture:** Zeek 8.0.5
-- **ML:** Scikit-learn, XGBoost, TensorFlow
-- **Pipeline:** Python, Pandas, NumPy
-- **Storage:** Kafka, Elasticsearch (coming soon)
-- **Dashboard:** Grafana (coming soon)
+## Stack
 
-## Project Status
-- [x] Zeek Setup & Configuration
-- [x] Data Collection Pipeline
-- [x] Feature Extraction (32 features)
-- [ ] Attack Data Collection
-- [ ] ML Model Training
-- [ ] Real-time Detection
-- [ ] Dashboard
+| Component | Version |
+|-----------|---------|
+| Ubuntu    | 24.04   |
+| Zeek      | 8.2.0   |
+| Python    | 3.x     |
+| XGBoost   | latest  |
 
-## Features Extracted
-| Category | Features |
-|----------|----------|
-| Basic | duration, bytes, packets |
-| Derived | ratios, avg sizes |
-| Protocol | tcp, udp, icmp |
-| Port | http, https, dns, ssh |
-| Time | hour, day, is_night |
-| Direction | is_external |
+## Quick Start
 
-## Setup
 ```bash
-# Clone
-git clone https://github.com/username/NetGuard-AI.git
+# 1. تحقق من Zeek
+sudo /opt/zeek/bin/zeekctl status
 
-# Environment
-python3.10 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# 2. شغّل collector
+cd ~/zeek-ids && source venv/bin/activate
+nohup python -u scripts/collector.py > logs/collector.log 2>&1 &
+echo $! > logs/collector.pid
 
-# Run Collector
-python scripts/collector.py
+# 3. Pipeline يومي
+python scripts/window_engine.py
+python scripts/risk_engine.py 2>/dev/null | grep -v "🟢"
+python scripts/state_tracker.py --analyze
 ```
 
-## Author
-Manhal
+## Detection Layers
+
+| Layer | Model | Purpose |
+|-------|-------|---------|
+| Behavioral | Isolation Forest | Anomaly detection |
+| Signature  | XGBoost 99.49%  | Attack classification |
+| Risk Engine| Weighted Score  | 0-100 risk score |
+
+## Philosophy
+
+- Risk Score — not binary decision  
+- Behavioral baseline — not generic datasets  
+- Explainable alerts — not black box
