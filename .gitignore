@@ -1,0 +1,22 @@
+# البيانات
+data/processed/
+data/windows/
+data/reports/
+data/cicids2017/
+
+# ملفات ضخمة
+*.tar.gz
+*.zip
+*.pcap
+
+# النماذج الكبيرة
+models/anomaly/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
