@@ -80,11 +80,11 @@ THRESHOLDS = {
 # ─── Baseline للـ features (من وثيقة السياق §13) ────────────────────────────
 # تُستخدم لحساب component scores بشكل نسبي
 BASELINE = {
-    "connections_30s_max":      12,
-    "unique_dst_ports_30s_max":  3,
-    "port_entropy_30s_max":      0.094,
-    "burst_score_30s_max":       0.283,
-    "dns_rate_1m_max":           0.5,    # طلبات/ثانية × 60
+    "connections_30s_max":      35,
+    "unique_dst_ports_30s_max":  5,
+    "port_entropy_30s_max":      0.115,
+    "burst_score_30s_max":       0.287,
+    "dns_rate_1m_max":           2.117,    # طلبات/ثانية × 60
     "outbound_ratio_30s_mean":   0.5,
 }
 
@@ -139,7 +139,7 @@ def compute_anomaly_scores(df: pd.DataFrame, model, scaler, feature_names: list)
     X_scaled    = scaler.transform(X)
     raw_scores  = model.score_samples(X_scaled)  # سالب = أكثر شذوذاً
     norm_scores = _normalize(raw_scores)
-    P99_BASELINE = 0.682
+    P99_BASELINE = 0.714
     adjusted = np.clip((norm_scores - P99_BASELINE) / (1.0 - P99_BASELINE), 0, 1)
     return adjusted
     
@@ -215,9 +215,9 @@ def compute_external_score(row: pd.Series) -> float:
     ratio = row.get("outbound_ratio_30s", 0)
 
     # طبيعي حتى 70% — يبدأ الخطر فوق 90%
-    if ratio < 0.7:
+    if ratio < 0.95:
         return 0.0
-    score = (ratio - 0.7) / 0.3  # [0,1] بين 70% و100%
+    score = (ratio - 0.95) / 0.05  # [0,1] بين 70% و100%
     return round(min(score, 1.0), 4)
 
 
