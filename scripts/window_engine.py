@@ -61,8 +61,8 @@ WINDOWS = {
 THRESHOLDS = {
     "port_scan_ports_30s":     15,   # >15 منفذ في 30s  → port scan
     "brute_force_failures_1m": 15,   # >15 فشل في 1m   → brute force
-    "burst_connections_30s":   50,   # >50 اتصال في 30s → burst
-    "dns_burst_1m":            30,   # >30 DNS في 1m    → dns flood
+    "burst_connections_30s":   90,   # >90 اتصال في 30s → burst
+    "dns_burst_1m":            60,   # >30 DNS في 1m    → dns flood
 }
 
 # ─── Noise Filter — Broadcast / Multicast طبيعي في أي شبكة ──────────────────

@@ -139,7 +139,7 @@ def compute_anomaly_scores(df: pd.DataFrame, model, scaler, feature_names: list)
     X_scaled    = scaler.transform(X)
     raw_scores  = model.score_samples(X_scaled)  # سالب = أكثر شذوذاً
     norm_scores = _normalize(raw_scores)
-    P99_BASELINE = 0.714
+    P99_BASELINE = 0.782
     adjusted = np.clip((norm_scores - P99_BASELINE) / (1.0 - P99_BASELINE), 0, 1)
     return adjusted
     
