@@ -1,0 +1,575 @@
+{
+  "generated_at": "2026-06-11T00:53:30.020668",
+  "min_flows_threshold": 0,
+  "global_baseline": {
+    "connections_30s_max": 35.0,
+    "unique_dst_ports_30s_max": 5.0,
+    "port_entropy_30s_max": 0.115,
+    "burst_score_30s_max": 0.287,
+    "dns_rate_1m_max": 2.117,
+    "outbound_ratio_30s_mean": 0.5,
+    "P99_BASELINE": 0.782
+  },
+  "ip_baselines": {
+    "192.168.1.101": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.691184",
+      "flow_count": 2461,
+      "connections_30s_p50": 4.0,
+      "connections_30s_p90": 26.0,
+      "connections_30s_p95": 38.0,
+      "connections_30s_p99": 58.44,
+      "connections_30s_p999": 80.588,
+      "connections_30s_max": 83.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 4.0,
+      "unique_dst_ports_30s_max": 4.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.999764,
+      "dns_rate_1m_p99": 14.64,
+      "dns_rate_1m_p999": 18.0,
+      "dns_rate_1m_max": 18.0,
+      "orig_bytes_p99": 34355.0,
+      "orig_bytes_max": 68951.0,
+      "duration_p99": 25.858613,
+      "if_p99": 0.6991,
+      "if_p999": 0.7739
+    },
+    "192.168.1.104": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.711180",
+      "flow_count": 1893,
+      "connections_30s_p50": 2.0,
+      "connections_30s_p90": 21.0,
+      "connections_30s_p95": 32.0,
+      "connections_30s_p99": 44.54,
+      "connections_30s_p999": 83.623,
+      "connections_30s_max": 97.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 5.0,
+      "unique_dst_ports_30s_max": 5.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.999818,
+      "dns_rate_1m_p99": 83.62,
+      "dns_rate_1m_p999": 160.338,
+      "dns_rate_1m_max": 186.0,
+      "orig_bytes_p99": 9320.96,
+      "orig_bytes_max": 83928.0,
+      "duration_p99": 17.267881,
+      "if_p99": 0.6368,
+      "if_p999": 0.7691
+    },
+    "192.168.1.118": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.737183",
+      "flow_count": 23180,
+      "connections_30s_p50": 4.0,
+      "connections_30s_p90": 12.0,
+      "connections_30s_p95": 16.0,
+      "connections_30s_p99": 60.0,
+      "connections_30s_p999": 126.047,
+      "connections_30s_max": 188.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 6.0,
+      "unique_dst_ports_30s_max": 6.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 1.0,
+      "dns_rate_1m_p99": 72.0,
+      "dns_rate_1m_p999": 148.792,
+      "dns_rate_1m_max": 224.0,
+      "orig_bytes_p99": 3855.26,
+      "orig_bytes_max": 230400.0,
+      "duration_p99": 11.198652,
+      "if_p99": 0.6581,
+      "if_p999": 0.8698
+    },
+    "192.168.1.121": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.771942",
+      "flow_count": 32320,
+      "connections_30s_p50": 1.0,
+      "connections_30s_p90": 1.0,
+      "connections_30s_p95": 1.0,
+      "connections_30s_p99": 3.0,
+      "connections_30s_p999": 3.0,
+      "connections_30s_max": 12.0,
+      "unique_dst_ports_30s_p99": 1.0,
+      "unique_dst_ports_30s_p999": 1.0,
+      "unique_dst_ports_30s_max": 2.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.999967,
+      "dns_rate_1m_p99": 6.0,
+      "dns_rate_1m_p999": 6.0,
+      "dns_rate_1m_max": 6.0,
+      "orig_bytes_p99": 36.0,
+      "orig_bytes_max": 48.0,
+      "duration_p99": 0.096731,
+      "if_p99": 0.3062,
+      "if_p999": 0.3109
+    },
+    "192.168.1.124": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.792265",
+      "flow_count": 2827,
+      "connections_30s_p50": 4.0,
+      "connections_30s_p90": 25.0,
+      "connections_30s_p95": 33.0,
+      "connections_30s_p99": 62.4,
+      "connections_30s_p999": 65.0,
+      "connections_30s_max": 65.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 5.36,
+      "unique_dst_ports_30s_max": 6.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.995627,
+      "dns_rate_1m_p99": 62.4,
+      "dns_rate_1m_p999": 76.16,
+      "dns_rate_1m_max": 80.0,
+      "orig_bytes_p99": 7322.48,
+      "orig_bytes_max": 33736.0,
+      "duration_p99": 26.402713
+    },
+    "192.168.1.144": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.822772",
+      "flow_count": 37806,
+      "connections_30s_p50": 2.0,
+      "connections_30s_p90": 14.0,
+      "connections_30s_p95": 22.0,
+      "connections_30s_p99": 63.0,
+      "connections_30s_p999": 139.115,
+      "connections_30s_max": 365.0,
+      "unique_dst_ports_30s_p99": 5.0,
+      "unique_dst_ports_30s_p999": 6.0,
+      "unique_dst_ports_30s_max": 7.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.993585,
+      "dns_rate_1m_p99": 86.0,
+      "dns_rate_1m_p999": 238.106,
+      "dns_rate_1m_max": 384.0,
+      "orig_bytes_p99": 6278.15,
+      "orig_bytes_max": 2069356884.0,
+      "duration_p99": 20.305514,
+      "if_p99": 0.6527,
+      "if_p999": 0.8786
+    },
+    "192.168.1.156": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.879088",
+      "flow_count": 148442,
+      "connections_30s_p50": 4.0,
+      "connections_30s_p90": 22.0,
+      "connections_30s_p95": 43.0,
+      "connections_30s_p99": 396.0,
+      "connections_30s_p999": 468.157,
+      "connections_30s_max": 606.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 6.0,
+      "unique_dst_ports_30s_max": 7.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.926887,
+      "dns_rate_1m_p99": 66.0,
+      "dns_rate_1m_p999": 158.0,
+      "dns_rate_1m_max": 198.0,
+      "orig_bytes_p99": 4885.0,
+      "orig_bytes_max": 1632233.0,
+      "duration_p99": 17.365071,
+      "if_p99": 0.8822,
+      "if_p999": 0.9769
+    },
+    "192.168.1.157": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.899950",
+      "flow_count": 2726,
+      "connections_30s_p50": 18.0,
+      "connections_30s_p90": 36.0,
+      "connections_30s_p95": 39.0,
+      "connections_30s_p99": 53.26,
+      "connections_30s_p999": 55.842,
+      "connections_30s_max": 56.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 4.0,
+      "unique_dst_ports_30s_max": 4.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 1.0,
+      "dns_rate_1m_p99": 72.0,
+      "dns_rate_1m_p999": 90.524,
+      "dns_rate_1m_max": 94.0,
+      "orig_bytes_p99": 1520.0,
+      "orig_bytes_max": 865162.0,
+      "duration_p99": 6.013655,
+      "if_p99": 0.7588,
+      "if_p999": 0.7697
+    },
+    "192.168.1.167": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.921549",
+      "flow_count": 6536,
+      "connections_30s_p50": 2.0,
+      "connections_30s_p90": 6.0,
+      "connections_30s_p95": 7.0,
+      "connections_30s_p99": 15.0,
+      "connections_30s_p999": 43.299,
+      "connections_30s_max": 64.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 7.023,
+      "unique_dst_ports_30s_max": 8.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.998317,
+      "dns_rate_1m_p99": 18.0,
+      "dns_rate_1m_p999": 32.184,
+      "dns_rate_1m_max": 70.0,
+      "orig_bytes_p99": 5954.45,
+      "orig_bytes_max": 61322.0,
+      "duration_p99": 20.625556,
+      "if_p99": 0.5255,
+      "if_p999": 0.7368
+    },
+    "192.168.1.175": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.948666",
+      "flow_count": 25878,
+      "connections_30s_p50": 3.0,
+      "connections_30s_p90": 11.0,
+      "connections_30s_p95": 18.0,
+      "connections_30s_p99": 54.16,
+      "connections_30s_p999": 133.312,
+      "connections_30s_max": 212.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 5.0,
+      "unique_dst_ports_30s_max": 5.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.996337,
+      "dns_rate_1m_p99": 68.0,
+      "dns_rate_1m_p999": 201.848,
+      "dns_rate_1m_max": 294.0,
+      "orig_bytes_p99": 28894.98,
+      "orig_bytes_max": 1527058.0,
+      "duration_p99": 27.110236,
+      "if_p99": 0.5333,
+      "if_p999": 0.8105
+    },
+    "192.168.1.177": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.969494",
+      "flow_count": 3588,
+      "connections_30s_p50": 2.0,
+      "connections_30s_p90": 14.0,
+      "connections_30s_p95": 21.45,
+      "connections_30s_p99": 48.38,
+      "connections_30s_p999": 78.107,
+      "connections_30s_max": 80.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 5.0,
+      "unique_dst_ports_30s_max": 5.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.998418,
+      "dns_rate_1m_p99": 25.38,
+      "dns_rate_1m_p999": 42.952,
+      "dns_rate_1m_max": 48.0,
+      "orig_bytes_p99": 23001.3,
+      "orig_bytes_max": 134324.0,
+      "duration_p99": 33.176814,
+      "if_p99": 0.1884,
+      "if_p999": 0.4384
+    },
+    "192.168.1.180": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:29.999950",
+      "flow_count": 41756,
+      "connections_30s_p50": 2.0,
+      "connections_30s_p90": 17.0,
+      "connections_30s_p95": 30.0,
+      "connections_30s_p99": 80.58,
+      "connections_30s_p999": 115.958,
+      "connections_30s_max": 259.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 5.958,
+      "unique_dst_ports_30s_max": 7.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 0.998672,
+      "dns_rate_1m_p99": 120.0,
+      "dns_rate_1m_p999": 170.0,
+      "dns_rate_1m_max": 220.0,
+      "orig_bytes_p99": 2477.0,
+      "orig_bytes_max": 183764.0,
+      "duration_p99": 11.405373,
+      "if_p99": 0.7054,
+      "if_p999": 0.8518
+    },
+    "192.168.1.191": {
+      "use_per_ip": true,
+      "last_updated": "2026-06-11T00:53:30.020354",
+      "flow_count": 3309,
+      "connections_30s_p50": 5.0,
+      "connections_30s_p90": 64.2,
+      "connections_30s_p95": 99.6,
+      "connections_30s_p99": 146.32,
+      "connections_30s_p999": 224.804,
+      "connections_30s_max": 239.0,
+      "unique_dst_ports_30s_p99": 4.0,
+      "unique_dst_ports_30s_p999": 4.844,
+      "unique_dst_ports_30s_max": 5.0,
+      "outbound_ratio_30s_p99": 1.0,
+      "outbound_ratio_30s_mean": 1.0,
+      "dns_rate_1m_p99": 139.76,
+      "dns_rate_1m_p999": 160.568,
+      "dns_rate_1m_max": 164.0,
+      "orig_bytes_p99": 147567.52,
+      "orig_bytes_max": 1707625.0,
+      "duration_p99": 17.156645,
+      "if_p99": 0.8876,
+      "if_p999": 0.9038
+    },
+    "108.177.119.188": {
+      "use_per_ip": false,
+      "flow_count": 11,
+      "last_updated": "2026-06-11T00:53:30.020383",
+      "reason": "insufficient data (11 < 500)"
+    },
+    "108.177.127.188": {
+      "use_per_ip": false,
+      "flow_count": 6,
+      "last_updated": "2026-06-11T00:53:30.020393",
+      "reason": "insufficient data (6 < 500)"
+    },
+    "108.177.96.188": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020399",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "131.222.252.105": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020405",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "142.250.145.188": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020410",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "142.250.153.188": {
+      "use_per_ip": false,
+      "flow_count": 10,
+      "last_updated": "2026-06-11T00:53:30.020415",
+      "reason": "insufficient data (10 < 500)"
+    },
+    "142.251.127.188": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020420",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "142.251.31.188": {
+      "use_per_ip": false,
+      "flow_count": 3,
+      "last_updated": "2026-06-11T00:53:30.020425",
+      "reason": "insufficient data (3 < 500)"
+    },
+    "172.217.218.188": {
+      "use_per_ip": false,
+      "flow_count": 4,
+      "last_updated": "2026-06-11T00:53:30.020430",
+      "reason": "insufficient data (4 < 500)"
+    },
+    "172.253.153.188": {
+      "use_per_ip": false,
+      "flow_count": 4,
+      "last_updated": "2026-06-11T00:53:30.020436",
+      "reason": "insufficient data (4 < 500)"
+    },
+    "173.194.69.188": {
+      "use_per_ip": false,
+      "flow_count": 3,
+      "last_updated": "2026-06-11T00:53:30.020441",
+      "reason": "insufficient data (3 < 500)"
+    },
+    "173.194.79.188": {
+      "use_per_ip": false,
+      "flow_count": 5,
+      "last_updated": "2026-06-11T00:53:30.020463",
+      "reason": "insufficient data (5 < 500)"
+    },
+    "188.132.222.242": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020474",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "192.12.31.109": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020482",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.111": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020489",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.74": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020496",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.83": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020503",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.85": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020512",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.86": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020524",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.87": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020535",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.90": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020541",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.12.31.93": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020546",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.168.1.1": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020551",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "192.168.1.116": {
+      "use_per_ip": false,
+      "flow_count": 129,
+      "last_updated": "2026-06-11T00:53:30.020556",
+      "reason": "insufficient data (129 < 500)"
+    },
+    "192.168.1.117": {
+      "use_per_ip": false,
+      "flow_count": 74,
+      "last_updated": "2026-06-11T00:53:30.020561",
+      "reason": "insufficient data (74 < 500)",
+      "if_p99": 0.4977,
+      "if_p999": 0.6341
+    },
+    "192.168.1.131": {
+      "use_per_ip": false,
+      "flow_count": 24,
+      "last_updated": "2026-06-11T00:53:30.020566",
+      "reason": "insufficient data (24 < 500)"
+    },
+    "192.168.1.143": {
+      "use_per_ip": false,
+      "flow_count": 277,
+      "last_updated": "2026-06-11T00:53:30.020571",
+      "reason": "insufficient data (277 < 500)",
+      "if_p99": 0.5255,
+      "if_p999": 0.5849
+    },
+    "192.168.68.13": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020576",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.168.7.1": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020581",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "192.178.156.188": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020586",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "192.178.213.188": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020592",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "34.80.0.147": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020601",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "35.211.132.58": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020606",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "40.78.238.4": {
+      "use_per_ip": false,
+      "flow_count": 2,
+      "last_updated": "2026-06-11T00:53:30.020611",
+      "reason": "insufficient data (2 < 500)"
+    },
+    "74.125.128.188": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020616",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "74.125.143.188": {
+      "use_per_ip": false,
+      "flow_count": 3,
+      "last_updated": "2026-06-11T00:53:30.020620",
+      "reason": "insufficient data (3 < 500)"
+    },
+    "8.8.4.4": {
+      "use_per_ip": false,
+      "flow_count": 10,
+      "last_updated": "2026-06-11T00:53:30.020625",
+      "reason": "insufficient data (10 < 500)"
+    },
+    "8.8.8.8": {
+      "use_per_ip": false,
+      "flow_count": 7,
+      "last_updated": "2026-06-11T00:53:30.020630",
+      "reason": "insufficient data (7 < 500)"
+    },
+    "89.43.133.242": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020635",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "98.98.144.26": {
+      "use_per_ip": false,
+      "flow_count": 1,
+      "last_updated": "2026-06-11T00:53:30.020640",
+      "reason": "insufficient data (1 < 500)"
+    },
+    "::": {
+      "use_per_ip": false,
+      "flow_count": 3,
+      "last_updated": "2026-06-11T00:53:30.020644",
+      "reason": "insufficient data (3 < 500)"
+    }
+  }
+}

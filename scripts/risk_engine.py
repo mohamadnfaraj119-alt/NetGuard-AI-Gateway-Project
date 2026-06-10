@@ -32,6 +32,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from baseline_loader import get_threshold
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from baseline_loader import get_threshold
 
 # ─── المسارات ────────────────────────────────────────────────────────────────
 BASE_DIR    = Path(__file__).resolve().parent.parent
@@ -139,8 +145,21 @@ def compute_anomaly_scores(df: pd.DataFrame, model, scaler, feature_names: list)
     X_scaled    = scaler.transform(X)
     raw_scores  = model.score_samples(X_scaled)  # سالب = أكثر شذوذاً
     norm_scores = _normalize(raw_scores)
-    P99_BASELINE = 0.782
-    adjusted = np.clip((norm_scores - P99_BASELINE) / (1.0 - P99_BASELINE), 0, 1)
+    # per-IP threshold
+    import json as _json
+    try:
+        with open(str(BASE_DIR / "data" / "baselines" / "ip_baselines.json")) as _f:
+            _bl = _json.load(_f)
+        _ip_baselines = _bl.get("ip_baselines", {})
+    except Exception:
+        _ip_baselines = {}
+
+    adjusted = np.zeros(len(norm_scores))
+    src_ips = df["src_ip"].values if "src_ip" in df.columns else [""] * len(df)
+    for i, (score, ip) in enumerate(zip(norm_scores, src_ips)):
+        ip_data  = _ip_baselines.get(str(ip), {})
+        p99_thr  = ip_data.get("if_p999", 0.725)  # p99.9 per-IP أو global
+        adjusted[i] = np.clip((score - p99_thr) / max(1.0 - p99_thr, 0.01), 0, 1)
     return adjusted
     
 
@@ -158,7 +177,7 @@ def _normalize(raw_scores: np.ndarray) -> np.ndarray:
 # حساب Component Scores
 # ══════════════════════════════════════════════════════════════════════════════
 
-def compute_scan_score(row: pd.Series) -> float:
+def compute_scan_score(row: pd.Series, src_ip: str = "") -> float:
     """
     Port Scan Score [0, 1]
     مصادر: unique_dst_ports_30s + port_entropy_30s + flag_port_scan
@@ -168,14 +187,16 @@ def compute_scan_score(row: pd.Series) -> float:
     flag    = row.get("flag_port_scan", 0)
 
     # تطبيع نسبي على الـ baseline
-    ports_norm   = min(ports   / max(BASELINE["unique_dst_ports_30s_max"] * 5, 1), 1.0)
-    entropy_norm = min(entropy / max(BASELINE["port_entropy_30s_max"]     * 5, 0.001), 1.0)
+    _port_max    = get_threshold(src_ip, "unique_dst_ports_30s") if src_ip else BASELINE["unique_dst_ports_30s_max"]
+    _entr_max    = get_threshold(src_ip, "port_entropy_30s")     if src_ip else BASELINE["port_entropy_30s_max"]
+    ports_norm   = min(ports   / max(_port_max * 3, 1), 1.0)
+    entropy_norm = min(entropy / max(_entr_max * 3, 0.001), 1.0)
 
     score = (ports_norm * 0.5) + (entropy_norm * 0.3) + (float(flag) * 0.2)
     return round(min(score, 1.0), 4)
 
 
-def compute_burst_score_component(row: pd.Series) -> float:
+def compute_burst_score_component(row: pd.Series, src_ip: str = '') -> float:
     """
     Burst Score [0, 1]
     مصادر: burst_score_30s + connections_30s + flag_burst
@@ -184,14 +205,16 @@ def compute_burst_score_component(row: pd.Series) -> float:
     conns   = row.get("connections_30s", 0)
     flag    = row.get("flag_burst", 0)
 
-    burst_norm = min(burst / max(BASELINE["burst_score_30s_max"] * 3, 0.001), 1.0)
-    conns_norm = min(conns / max(BASELINE["connections_30s_max"] * 4, 1), 1.0)
+    _burst_max = get_threshold(src_ip, "burst_score_30s") if src_ip else BASELINE["burst_score_30s_max"]
+    _conn_max  = get_threshold(src_ip, "connections_30s")  if src_ip else BASELINE["connections_30s_max"]
+    burst_norm = min(burst / max(_burst_max * 3, 0.001), 1.0)
+    conns_norm = min(conns / max(_conn_max  * 3, 1), 1.0)
 
     score = (burst_norm * 0.5) + (conns_norm * 0.3) + (float(flag) * 0.2)
     return round(min(score, 1.0), 4)
 
 
-def compute_dns_score(row: pd.Series) -> float:
+def compute_dns_score(row: pd.Series, src_ip: str = '') -> float:
     """
     DNS Anomaly Score [0, 1]
     مصادر: dns_rate_1m + flag_dns_flood
@@ -199,7 +222,8 @@ def compute_dns_score(row: pd.Series) -> float:
     dns_rate = row.get("dns_rate_1m", 0) * 60  # تحويل إلى طلبات/دقيقة
     flag     = row.get("flag_dns_flood", 0)
 
-    dns_norm = min(dns_rate / max(BASELINE["dns_rate_1m_max"] * 6, 1), 1.0)
+    _dns_max = get_threshold(src_ip, "dns_rate_1m") if src_ip else BASELINE["dns_rate_1m_max"]
+    dns_norm = min(dns_rate / max(_dns_max * 6, 1), 1.0)
 
     score = (dns_norm * 0.7) + (float(flag) * 0.3)
     return round(min(score, 1.0), 4)
@@ -225,15 +249,15 @@ def compute_external_score(row: pd.Series) -> float:
 # Risk Score النهائي
 # ══════════════════════════════════════════════════════════════════════════════
 
-def compute_risk_score(row: pd.Series, anomaly_score: float) -> dict:
+def compute_risk_score(row: pd.Series, anomaly_score: float, src_ip: str = '') -> dict:
     """
     يحسب Risk Score الكلي لنافذة واحدة.
     يُعيد dict بكل المكونات + Score النهائي + التفسير.
     """
-    scan_s     = compute_scan_score(row)
-    burst_s    = compute_burst_score_component(row)
-    dns_s      = compute_dns_score(row)
-    external_s = compute_external_score(row)
+    scan_s     = compute_scan_score(row, src_ip)
+    burst_s    = compute_burst_score_component(row, src_ip)
+    dns_s      = compute_dns_score(row, src_ip)
+    external_s = 0.0  # disabled — outbound=1.0 طبيعي في شبكة NAT منزلية
 
     raw = (
         anomaly_score * WEIGHTS["anomaly"]  +
@@ -358,7 +382,8 @@ def run(input_file: Path, output_file: Path = None, verbose: bool = True) -> pd.
     log.info("⏳ حساب Risk Scores...")
     risk_rows = []
     for i, row in df.iterrows():
-        risk = compute_risk_score(row, float(anomaly_scores[i]))
+        _ip  = str(row.get('src_ip', ''))
+        risk = compute_risk_score(row, float(anomaly_scores[i]), _ip)
         risk_rows.append(risk)
 
     df_risk = pd.DataFrame(risk_rows)
@@ -396,7 +421,8 @@ def _print_alerts(df: pd.DataFrame):
 
     for _, row in alerts.sort_values("risk_score", ascending=False).iterrows():
         emoji = row.get("risk_emoji", "⚠️")
-        print(f"\n{emoji} [{row.get('datetime', 'N/A')}] "
+        _ip_str = f" | IP: {row['src_ip']}" if 'src_ip' in row else ""
+        print(f"\n{emoji} [{row.get('datetime', 'N/A')}]{_ip_str} "
               f"Risk Score: {row['risk_score']:.1f}/100 — {row.get('risk_level','')}")
         print(f"   📋 {row.get('explanation', '')}")
         print(f"   المكونات: "
@@ -474,7 +500,8 @@ def live_mode():
             df_new["anomaly_score"] = np.round(anomaly_scores, 4)
 
             for i, (idx, row) in enumerate(df_new.iterrows()):
-                risk = compute_risk_score(row, float(anomaly_scores[i]))
+                _ip  = str(row.get('src_ip', ''))
+                risk = compute_risk_score(row, float(anomaly_scores[i]), _ip)
 
                 score = risk["risk_score"]
                 emoji = risk["risk_emoji"]

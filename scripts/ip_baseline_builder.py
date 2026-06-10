@@ -120,12 +120,14 @@ def compute_ip_stats(ip_df: pd.DataFrame) -> dict:
         stats["connections_30s_p90"] = pct(conn_per_bucket, 90)
         stats["connections_30s_p95"] = pct(conn_per_bucket, 95)
         stats["connections_30s_p99"] = pct(conn_per_bucket, 99)
+        stats["connections_30s_p999"] = pct(conn_per_bucket, 99.9)
         stats["connections_30s_max"] = round(float(conn_per_bucket.max()), 6)
 
         # unique_dst_ports_30s
         if "dst_port" in ip_df.columns:
             ports_per_bucket = grp["dst_port"].nunique()
             stats["unique_dst_ports_30s_p99"] = pct(ports_per_bucket, 99)
+            stats["unique_dst_ports_30s_p999"] = pct(ports_per_bucket, 99.9)
             stats["unique_dst_ports_30s_max"] = round(float(ports_per_bucket.max()), 6)
 
         # outbound_ratio_30s
@@ -138,6 +140,7 @@ def compute_ip_stats(ip_df: pd.DataFrame) -> dict:
         if "is_dns" in ip_df.columns:
             dns_per_bucket = grp["is_dns"].sum() * 2  # per-minute equivalent
             stats["dns_rate_1m_p99"] = pct(dns_per_bucket, 99)
+            stats["dns_rate_1m_p999"] = pct(dns_per_bucket, 99.9)
             stats["dns_rate_1m_max"] = round(float(dns_per_bucket.max()), 6)
 
     # ── 2. Flow-level features (no bucketing needed) ──

@@ -103,7 +103,7 @@ def get_ip_data(ip: str, path: str = _DEFAULT_PATH) -> tuple[dict, bool]:
 
 
 def get_threshold(ip: str, feature: str,
-                  percentile: str = "p99",
+                  percentile: str = "p999",
                   path: str = _DEFAULT_PATH) -> float:
     """
     Returns the threshold for a feature for a given IP.
