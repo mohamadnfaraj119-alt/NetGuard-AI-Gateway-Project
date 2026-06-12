@@ -9,12 +9,19 @@ import os
 import sys
 import glob
 import json
+import re
+import argparse
 import warnings
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
 
 warnings.filterwarnings("ignore")
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 try:
     import pandas as pd
@@ -26,9 +33,10 @@ except ImportError:
 # ─────────────────────────────────────────────
 # إعدادات
 # ─────────────────────────────────────────────
-BASE_DIR = Path.home() / "zeek-ids"
+BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 WINDOWS_DIR   = BASE_DIR / "data" / "windows"
+MODELS_DIR    = BASE_DIR / "models" / "anomaly"
 
 # معايير القبول
 MIN_DAYS          = 3
@@ -48,6 +56,7 @@ NOISE_PORTS = {137, 138, 139, 5353, 1900, 5355}
 
 BANNED_FEATURES = {"Flow Bytes/s", "Flow Packets/s",
                    "flow_bytes_per_sec", "flow_packets_per_sec"}
+REVIEW_FEATURE_PATTERNS = ("bytes_per_sec", "packets_per_sec")
 
 SEPARATOR = "─" * 60
 
@@ -82,13 +91,19 @@ def load_baselines():
     return pd.concat(dfs, ignore_index=True), files
 
 def load_windows():
-    files = sorted(glob.glob(str(WINDOWS_DIR / "windows_*.csv")))
+    daily_re = re.compile(r"windows_\d{4}-\d{2}-\d{2}\.csv$")
+    files = [
+        f for f in sorted(glob.glob(str(WINDOWS_DIR / "windows_*.csv")))
+        if daily_re.search(Path(f).name)
+    ]
     if not files:
         return None, []
     dfs = []
     for f in files:
         try:
             df = pd.read_csv(f, low_memory=False)
+            date_str = Path(f).stem.replace("windows_", "")
+            df["_source_file"] = date_str
             dfs.append(df)
         except Exception as e:
             warn(f"تعذّر قراءة {Path(f).name}: {e}")
@@ -324,8 +339,7 @@ def check_features(df_win):
     numeric_cols = df_win.select_dtypes(include=[np.number]).columns.tolist()
     
     # حذف أعمدة الوقت والـ flags
-    exclude = {"ts", "timestamp", "window_start", "window_end",
-               "port_scan", "brute_force", "dns_exfil", "data_exfil", "syn_flood"}
+    exclude = {"ts", "timestamp", "window_start", "window_end"}
     feature_cols = [c for c in numeric_cols if c not in exclude]
 
     info(f"عدد الـ Feature Columns: {len(feature_cols)}")
@@ -359,8 +373,7 @@ def check_features(df_win):
                 print(f"    {c:<35} {col.mean():>10.2f} {col.std():>10.2f} {col.quantile(0.99):>10.2f}")
 
     # فحص الـ Flags
-    flag_cols = [c for c in df_win.columns if c in
-                 {"port_scan", "brute_force", "dns_exfil", "data_exfil", "syn_flood"}]
+    flag_cols = [c for c in df_win.columns if c.startswith("flag_")]
     if flag_cols:
         print()
         info("معدل الـ Flags (يجب أن يكون قريباً من 0 في Baseline):")
@@ -378,10 +391,108 @@ def check_features(df_win):
     return scores
 
 # ─────────────────────────────────────────────
-# 6. فحص تنوع الشبكة (Gateway)
+# 6. فحص per-IP windows
+# ─────────────────────────────────────────────
+def check_per_ip_windows(df_win):
+    header("6 / per-IP Windows Readiness")
+
+    if df_win is None:
+        warn("لا توجد ملفات Windows — لا يمكن فحص per-IP")
+        return [0]
+
+    scores = []
+
+    if "src_ip" not in df_win.columns:
+        err("windows لا تحتوي src_ip — هذا يعني أن window_engine ليس v2.0/per-IP")
+        return [0, 0]
+
+    counts = df_win["src_ip"].dropna().astype(str).value_counts()
+    local_counts = counts[counts.index.str.startswith("192.168.1.")]
+
+    info(f"عدد src_ip في windows: {counts.size}")
+    info(f"عدد أجهزة LAN في windows: {local_counts.size}")
+
+    if local_counts.size >= 2:
+        ok("windows مبنية per-IP وليست network-wide")
+        scores.append(1)
+    else:
+        warn("تنوع per-IP ضعيف — تحقق أن الأجهزة تمر عبر Gateway")
+        scores.append(0.5 if local_counts.size == 1 else 0)
+
+    print()
+    info("أكثر الأجهزة ظهوراً في windows:")
+    for ip, cnt in local_counts.head(10).items():
+        marker = "✅" if cnt >= 100 else "⚠️"
+        print(f"    {marker} {ip:<15} {cnt:>7,} نافذة")
+
+    low_data = local_counts[local_counts < 100]
+    if len(low_data) == 0:
+        ok("كل أجهزة LAN لديها 100+ نافذة")
+        scores.append(1)
+    else:
+        warn(f"أجهزة ببيانات قليلة (<100 نافذة): {len(low_data)}")
+        scores.append(0.5)
+
+    if "_source_file" in df_win.columns:
+        per_day_ip = df_win.groupby("_source_file")["src_ip"].nunique()
+        print()
+        info("تنوع الأجهزة اليومي في windows:")
+        for day, cnt in per_day_ip.items():
+            marker = "✅" if cnt >= 2 else "⚠️"
+            print(f"    {marker} {day}: {cnt} src_ip")
+
+    return scores
+
+# ─────────────────────────────────────────────
+# 7. فحص عقد النموذج الحالي
+# ─────────────────────────────────────────────
+def check_model_contract():
+    header("7 / Model Feature Contract")
+    scores = []
+
+    features_file = MODELS_DIR / "feature_names.json"
+    if not features_file.exists():
+        warn(f"لا يوجد feature_names.json: {features_file}")
+        return [0.5]
+
+    try:
+        with open(features_file, encoding="utf-8") as f:
+            feature_names = json.load(f)
+    except Exception as e:
+        warn(f"تعذر قراءة feature_names.json: {e}")
+        return [0]
+
+    info(f"IF feature count: {len(feature_names)}")
+
+    review_features = [
+        feat for feat in feature_names
+        if any(pattern in feat for pattern in REVIEW_FEATURE_PATTERNS)
+    ]
+
+    if review_features:
+        warn("Features تحتاج مراجعة قبل التدريب القادم:")
+        for feat in review_features:
+            print(f"    ⚠️  {feat}")
+        info("لا نحذفها الآن بدون retraining، لكن يجب اختبار أثرها على FP/Recall.")
+        scores.append(0.5)
+    else:
+        ok("لا توجد rate/throughput features مثيرة للالتباس في IF")
+        scores.append(1)
+
+    if "src_ip" in feature_names:
+        err("src_ip موجود داخل model features — هذا Feature Leakage")
+        scores.append(0)
+    else:
+        ok("src_ip غير داخل model features")
+        scores.append(1)
+
+    return scores
+
+# ─────────────────────────────────────────────
+# 8. فحص تنوع الشبكة (Gateway)
 # ─────────────────────────────────────────────
 def check_network_diversity(df_base):
-    header("6 / تنوع الشبكة (Gateway Coverage)")
+    header("8 / تنوع الشبكة (Gateway Coverage)")
     scores = []
 
     src_col = None
@@ -419,10 +530,10 @@ def check_network_diversity(df_base):
     return scores
 
 # ─────────────────────────────────────────────
-# 7. القرار النهائي
+# 9. القرار النهائي
 # ─────────────────────────────────────────────
 def final_decision(all_scores, df_base, df_win, base_files):
-    header("7 / القرار النهائي")
+    header("9 / القرار النهائي")
 
     total = sum(all_scores)
     max_score = len(all_scores)
@@ -483,10 +594,23 @@ def final_decision(all_scores, df_base, df_win, base_files):
 # Main
 # ─────────────────────────────────────────────
 def main():
+    global BASE_DIR, PROCESSED_DIR, WINDOWS_DIR, MODELS_DIR
+
+    parser = argparse.ArgumentParser(description="NetGuard-AI Gateway — Data Assessment")
+    parser.add_argument("--base-dir", default=str(BASE_DIR),
+                        help="مسار المشروع. الافتراضي: root المستنتج من مكان السكربت")
+    args = parser.parse_args()
+
+    BASE_DIR = Path(args.base_dir).expanduser().resolve()
+    PROCESSED_DIR = BASE_DIR / "data" / "processed"
+    WINDOWS_DIR = BASE_DIR / "data" / "windows"
+    MODELS_DIR = BASE_DIR / "models" / "anomaly"
+
     print()
     print("══════════════════════════════════════════════════════")
-    print("   NetGuard-AI Gateway — Data Assessment v1.0")
+    print("   NetGuard-AI Gateway — Data Assessment v1.1")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"   Project: {BASE_DIR}")
     print("══════════════════════════════════════════════════════")
 
     # تحقق من المسارات
@@ -514,6 +638,8 @@ def main():
     all_scores += check_quality(df_base)
     all_scores += check_noise(df_base)
     all_scores += check_features(df_win)
+    all_scores += check_per_ip_windows(df_win)
+    all_scores += check_model_contract()
     all_scores += check_network_diversity(df_base)
 
     # القرار
