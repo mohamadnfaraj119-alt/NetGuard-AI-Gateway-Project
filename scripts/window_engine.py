@@ -253,7 +253,9 @@ def process_single_ip(df_ip: pd.DataFrame, ip: str, step_sec: int = 30) -> pd.Da
     t_start   = df_ip["ts"].min()
     t_end     = df_ip["ts"].max()
     window_max = max(WINDOWS.values())
-    t_current  = t_start + window_max
+    # Micro-bursts such as fast nmap scans can finish in <30s.  Starting at
+    # t_start + 5m would silently produce zero windows, hiding the event.
+    t_current  = t_start + min(step_sec, max(t_end - t_start, 1.0))
 
     results = []
     while t_current <= t_end + step_sec:
