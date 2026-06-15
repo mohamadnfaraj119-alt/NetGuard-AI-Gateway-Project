@@ -158,19 +158,46 @@ def compute_anomaly_scores(df: pd.DataFrame, model, scaler, feature_names: list)
     src_ips = df["src_ip"].values if "src_ip" in df.columns else [""] * len(df)
     for i, (score, ip) in enumerate(zip(norm_scores, src_ips)):
         ip_data  = _ip_baselines.get(str(ip), {})
-        p99_thr  = ip_data.get("if_p999", 0.725)  # p99.9 per-IP أو global
+        p99_thr  = ip_data.get("if_p99", 0.782)  # p99.9 per-IP أو global
         adjusted[i] = np.clip((score - p99_thr) / max(1.0 - p99_thr, 0.01), 0, 1)
     return adjusted
     
 
 
 def _normalize(raw_scores: np.ndarray) -> np.ndarray:
-    """تحويل IF scores إلى [0, 1]"""
+    """تحويل IF scores إلى [0,1] باستخدام if_scaler.json"""
+
     scores = -raw_scores
-    s_min, s_max = scores.min(), scores.max()
-    if s_max == s_min:
-        return np.zeros_like(scores)
-    return (scores - s_min) / (s_max - s_min)
+
+    try:
+        with open(MODELS_DIR / "if_scaler.json") as f:
+            scaler_cfg = json.load(f)
+
+        score_min = float(scaler_cfg["score_min"])
+        score_max = float(scaler_cfg["score_max"])
+
+        denom = score_max - score_min
+
+        if denom <= 1e-9:
+            return np.zeros_like(scores)
+
+        return np.clip(
+            (scores - score_min) / denom,
+            0.0,
+            1.0
+        )
+
+    except Exception as e:
+        log.warning(
+            f"⚠️ if_scaler.json غير متاح ({e}) — استخدام الطريقة القديمة"
+        )
+
+        s_min, s_max = scores.min(), scores.max()
+
+        if s_max == s_min:
+            return np.zeros_like(scores)
+
+        return (scores - s_min) / (s_max - s_min)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

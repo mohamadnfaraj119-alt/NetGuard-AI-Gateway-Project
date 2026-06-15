@@ -32,8 +32,8 @@
       "orig_bytes_p99": 34355.0,
       "orig_bytes_max": 68951.0,
       "duration_p99": 25.858613,
-      "if_p99": 0.6991,
-      "if_p999": 0.7739
+      "if_p99": 0.6807,
+      "if_p999": 0.7661
     },
     "192.168.1.104": {
       "use_per_ip": true,
@@ -56,8 +56,8 @@
       "orig_bytes_p99": 9320.96,
       "orig_bytes_max": 83928.0,
       "duration_p99": 17.267881,
-      "if_p99": 0.6368,
-      "if_p999": 0.7691
+      "if_p99": 0.5765,
+      "if_p999": 0.7352
     },
     "192.168.1.118": {
       "use_per_ip": true,
@@ -104,7 +104,7 @@
       "orig_bytes_p99": 36.0,
       "orig_bytes_max": 48.0,
       "duration_p99": 0.096731,
-      "if_p99": 0.3062,
+      "if_p99": 0.3058,
       "if_p999": 0.3109
     },
     "192.168.1.124": {
@@ -127,7 +127,9 @@
       "dns_rate_1m_max": 80.0,
       "orig_bytes_p99": 7322.48,
       "orig_bytes_max": 33736.0,
-      "duration_p99": 26.402713
+      "duration_p99": 26.402713,
+      "if_p99": 0.6654,
+      "if_p999": 0.7485
     },
     "192.168.1.144": {
       "use_per_ip": true,
@@ -150,8 +152,8 @@
       "orig_bytes_p99": 6278.15,
       "orig_bytes_max": 2069356884.0,
       "duration_p99": 20.305514,
-      "if_p99": 0.6527,
-      "if_p999": 0.8786
+      "if_p99": 0.6578,
+      "if_p999": 0.8828
     },
     "192.168.1.156": {
       "use_per_ip": true,
@@ -174,8 +176,8 @@
       "orig_bytes_p99": 4885.0,
       "orig_bytes_max": 1632233.0,
       "duration_p99": 17.365071,
-      "if_p99": 0.8822,
-      "if_p999": 0.9769
+      "if_p99": 0.8421,
+      "if_p999": 0.975
     },
     "192.168.1.157": {
       "use_per_ip": true,
@@ -246,8 +248,8 @@
       "orig_bytes_p99": 28894.98,
       "orig_bytes_max": 1527058.0,
       "duration_p99": 27.110236,
-      "if_p99": 0.5333,
-      "if_p999": 0.8105
+      "if_p99": 0.5361,
+      "if_p999": 0.8019
     },
     "192.168.1.177": {
       "use_per_ip": true,
@@ -270,8 +272,8 @@
       "orig_bytes_p99": 23001.3,
       "orig_bytes_max": 134324.0,
       "duration_p99": 33.176814,
-      "if_p99": 0.1884,
-      "if_p999": 0.4384
+      "if_p99": 0.4374,
+      "if_p999": 0.6878
     },
     "192.168.1.180": {
       "use_per_ip": true,
@@ -294,8 +296,8 @@
       "orig_bytes_p99": 2477.0,
       "orig_bytes_max": 183764.0,
       "duration_p99": 11.405373,
-      "if_p99": 0.7054,
-      "if_p999": 0.8518
+      "if_p99": 0.677,
+      "if_p999": 0.8473
     },
     "192.168.1.191": {
       "use_per_ip": true,
@@ -463,15 +465,17 @@
       "use_per_ip": false,
       "flow_count": 129,
       "last_updated": "2026-06-11T00:53:30.020556",
-      "reason": "insufficient data (129 < 500)"
+      "reason": "insufficient data (129 < 500)",
+      "if_p99": 0.4776,
+      "if_p999": 0.5991
     },
     "192.168.1.117": {
       "use_per_ip": false,
       "flow_count": 74,
       "last_updated": "2026-06-11T00:53:30.020561",
       "reason": "insufficient data (74 < 500)",
-      "if_p99": 0.4977,
-      "if_p999": 0.6341
+      "if_p99": 0.6333,
+      "if_p999": 0.9727
     },
     "192.168.1.131": {
       "use_per_ip": false,
