@@ -158,7 +158,7 @@ def compute_anomaly_scores(df: pd.DataFrame, model, scaler, feature_names: list)
     src_ips = df["src_ip"].values if "src_ip" in df.columns else [""] * len(df)
     for i, (score, ip) in enumerate(zip(norm_scores, src_ips)):
         ip_data  = _ip_baselines.get(str(ip), {})
-        p99_thr  = ip_data.get("if_p99", 0.782)  # p99.9 per-IP أو global
+        p99_thr  = ip_data.get("if_p999", 0.660)  # p99.9 per-IP أو global
         adjusted[i] = np.clip((score - p99_thr) / max(1.0 - p99_thr, 0.01), 0, 1)
     return adjusted
     
