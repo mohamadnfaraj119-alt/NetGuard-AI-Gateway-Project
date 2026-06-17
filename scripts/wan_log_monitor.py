@@ -25,12 +25,22 @@ import alert_writer
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
+THRESHOLDS_PROFILE = BASE_DIR / "config" / "thresholds_profile.json"
 REPORT_DIR = BASE_DIR / "data" / "reports"
 PREFIX = "NETGUARD_WAN"
 JOURNALCTL_CMD = ["journalctl", "-k", "-f", "-o", "cat", "-n", "0"]
 PORT_SCAN_THRESHOLD = 25
 PORT_SCAN_WINDOW_SECONDS = 30
 ALERT_COOLDOWN_SECONDS = 30
+DEFAULT_RISK_SCORE = 90.0
+
+
+@dataclass(frozen=True)
+class WanMonitorThresholds:
+    port_scan_threshold: int = PORT_SCAN_THRESHOLD
+    port_scan_window_seconds: int = PORT_SCAN_WINDOW_SECONDS
+    alert_cooldown_seconds: int = ALERT_COOLDOWN_SECONDS
+    risk_score: float = DEFAULT_RISK_SCORE
 
 
 @dataclass(frozen=True)
@@ -69,6 +79,63 @@ def load_json(path: Path) -> dict[str, object]:
     except (OSError, json.JSONDecodeError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def positive_int(value: object, fallback: int) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return number if number > 0 else fallback
+
+
+def positive_float(value: object, fallback: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return number if number > 0 else fallback
+
+
+def configured_port_scan_window(traffic_limits: dict[str, object]) -> int:
+    for key in (
+        "port_scan_window_seconds",
+        "wan_port_scan_window_seconds",
+        "max_unique_dst_ports_window_seconds",
+    ):
+        if key in traffic_limits:
+            return positive_int(traffic_limits.get(key), PORT_SCAN_WINDOW_SECONDS)
+    return PORT_SCAN_WINDOW_SECONDS
+
+
+def load_monitor_thresholds() -> WanMonitorThresholds:
+    profile = load_json(THRESHOLDS_PROFILE)
+    traffic_limits = profile.get("traffic_limits")
+    risk_score_bands = profile.get("risk_score_bands")
+
+    threshold = PORT_SCAN_THRESHOLD
+    window_seconds = PORT_SCAN_WINDOW_SECONDS
+    risk_score = DEFAULT_RISK_SCORE
+
+    if isinstance(traffic_limits, dict):
+        threshold = positive_int(
+            traffic_limits.get("max_unique_dst_ports_30s"),
+            PORT_SCAN_THRESHOLD,
+        )
+        window_seconds = configured_port_scan_window(traffic_limits)
+
+    if isinstance(risk_score_bands, dict):
+        risk_score = positive_float(
+            risk_score_bands.get("critical"),
+            DEFAULT_RISK_SCORE,
+        )
+
+    return WanMonitorThresholds(
+        port_scan_threshold=threshold,
+        port_scan_window_seconds=window_seconds,
+        alert_cooldown_seconds=ALERT_COOLDOWN_SECONDS,
+        risk_score=risk_score,
+    )
 
 
 def parse_kernel_fields(line: str) -> dict[str, str]:
@@ -110,7 +177,8 @@ def parse_wan_line(line: str) -> WanLogEvent | None:
 
 
 class WanPortScanDetector:
-    def __init__(self) -> None:
+    def __init__(self, thresholds: WanMonitorThresholds | None = None) -> None:
+        self.thresholds = thresholds or load_monitor_thresholds()
         self._ports_by_source: dict[str, deque[tuple[datetime, int]]] = defaultdict(deque)
         self._last_alert_by_source: dict[str, datetime] = {}
 
@@ -118,22 +186,23 @@ class WanPortScanDetector:
         source_window = self._ports_by_source[event.src_ip]
         source_window.append((now, event.dst_port))
 
-        while source_window and (now - source_window[0][0]).total_seconds() > PORT_SCAN_WINDOW_SECONDS:
+        window_seconds = self.thresholds.port_scan_window_seconds
+        while source_window and (now - source_window[0][0]).total_seconds() > window_seconds:
             source_window.popleft()
 
         unique_ports = {port for _, port in source_window}
-        if len(unique_ports) < PORT_SCAN_THRESHOLD:
+        if len(unique_ports) < self.thresholds.port_scan_threshold:
             return None
 
         last_alert = self._last_alert_by_source.get(event.src_ip)
-        if last_alert and (now - last_alert).total_seconds() < ALERT_COOLDOWN_SECONDS:
+        if last_alert and (now - last_alert).total_seconds() < self.thresholds.alert_cooldown_seconds:
             return None
 
         self._last_alert_by_source[event.src_ip] = now
         sorted_ports = sorted(unique_ports)
         reason = (
             f"WAN source touched {len(unique_ports)} unique destination ports "
-            f"within {PORT_SCAN_WINDOW_SECONDS} seconds"
+            f"within {window_seconds} seconds"
         )
         return {
             "time": now.isoformat(),
@@ -141,7 +210,7 @@ class WanPortScanDetector:
             "direction": "wan_to_gateway",
             "alert_type": "wan_port_scan",
             "severity": "high",
-            "risk_score": 90.0,
+            "risk_score": self.thresholds.risk_score,
             "src_ip": event.src_ip,
             "dst_ip": event.dst_ip,
             "dst_port": event.dst_port,
@@ -151,7 +220,7 @@ class WanPortScanDetector:
             "message": reason,
             "unique_dst_ports": len(unique_ports),
             "dst_ports_sample": sorted_ports[:25],
-            "window_seconds": PORT_SCAN_WINDOW_SECONDS,
+            "window_seconds": window_seconds,
         }
 
 
@@ -207,11 +276,12 @@ def print_last_wan_alerts(alerts: list[dict[str, object]]) -> None:
 
 
 def print_status() -> int:
+    thresholds = load_monitor_thresholds()
     journalctl_path = shutil.which("journalctl")
     ok(f"parser prefix: {PREFIX}")
     ok(
         "threshold: "
-        f"{PORT_SCAN_THRESHOLD} unique dst ports / {PORT_SCAN_WINDOW_SECONDS}s"
+        f"{thresholds.port_scan_threshold} unique dst ports / {thresholds.port_scan_window_seconds}s"
     )
     if journalctl_path:
         ok(f"journalctl exists: {journalctl_path}")
@@ -296,7 +366,8 @@ def print_iptables_rule() -> int:
     return 0
 
 
-def sample_wan_lines() -> list[str]:
+def sample_wan_lines(thresholds: WanMonitorThresholds | None = None) -> list[str]:
+    thresholds = thresholds or load_monitor_thresholds()
     src_ip = "192.168.68.2"
     dst_ip = "192.168.68.13"
     return [
@@ -307,16 +378,36 @@ def sample_wan_lines() -> list[str]:
             f"ID={40000 + offset} PROTO=TCP SPT={58433 + offset} DPT={port} "
             "WINDOW=64240 RES=0x00 SYN URGP=0"
         )
-        for offset, port in enumerate(range(10000, 10000 + PORT_SCAN_THRESHOLD))
+        for offset, port in enumerate(range(10000, 10000 + thresholds.port_scan_threshold))
     ]
 
 
-def run_test_parse() -> int:
-    detector = WanPortScanDetector()
+def run_test_parse(test_line: str | None = None) -> int:
+    thresholds = load_monitor_thresholds()
+
+    if test_line is not None:
+        event = parse_wan_line(test_line)
+        if event is None:
+            print("[FAIL] NETGUARD_WAN line did not parse", file=sys.stderr)
+            return 1
+        ok(
+            "parsed NETGUARD_WAN line: "
+            f"src={event.src_ip} dst={event.dst_ip} dpt={event.dst_port} "
+            f"proto={event.protocol} in={event.input_interface}"
+        )
+        ok(
+            "effective threshold: "
+            f"{thresholds.port_scan_threshold} unique dst ports / "
+            f"{thresholds.port_scan_window_seconds}s"
+        )
+        ok("no firewall or system changes were made")
+        return 0
+
+    detector = WanPortScanDetector(thresholds)
     base_time = _utc_now()
     alerts: list[dict[str, object]] = []
 
-    for offset, line in enumerate(sample_wan_lines()):
+    for offset, line in enumerate(sample_wan_lines(thresholds)):
         event = parse_wan_line(line)
         if event is None:
             print("[FAIL] sample NETGUARD_WAN line did not parse", file=sys.stderr)
@@ -332,10 +423,11 @@ def run_test_parse() -> int:
         return 1
 
     written = alert_writer.write_alert(alerts[0])
-    ok(f"parsed sample NETGUARD_WAN lines: {PORT_SCAN_THRESHOLD}")
+    ok(f"parsed sample NETGUARD_WAN lines: {thresholds.port_scan_threshold}")
     ok(
         "wrote WAN port scan alert: "
-        f"src={written['src_ip']} ports={written['unique_dst_ports']}"
+        f"src={written['src_ip']} ports={written['unique_dst_ports']} "
+        f"window={written['window_seconds']}s risk={written['risk_score']}"
     )
     ok(f"log: {alert_writer.ALERTS_LOG.relative_to(BASE_DIR)}")
     ok("no firewall or system changes were made")
@@ -404,8 +496,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--test-parse",
-        action="store_true",
-        help="parse synthetic NETGUARD_WAN lines and write one test alert",
+        nargs="?",
+        const=True,
+        default=False,
+        metavar="LINE",
+        help="parse a NETGUARD_WAN line, or synthetic lines if no line is provided",
     )
     parser.add_argument(
         "--print-iptables-rule",
@@ -430,8 +525,9 @@ def main() -> int:
     if args.print_iptables_rule:
         return print_iptables_rule()
 
-    if args.test_parse:
-        return run_test_parse()
+    if args.test_parse is not False:
+        test_line = None if args.test_parse is True else args.test_parse
+        return run_test_parse(test_line)
 
     if args.dry_run or args.status:
         return print_status()
