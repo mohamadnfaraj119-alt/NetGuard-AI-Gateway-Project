@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import shlex
 import shutil
 import subprocess
@@ -28,12 +27,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 REPORT_DIR = BASE_DIR / "data" / "reports"
 PREFIX = "NETGUARD_WAN"
-JOURNALCTL_CMD = ["journalctl", "-k", "-f", "-n", "0"]
+JOURNALCTL_CMD = ["journalctl", "-k", "-f", "-o", "cat", "-n", "0"]
 PORT_SCAN_THRESHOLD = 25
 PORT_SCAN_WINDOW_SECONDS = 30
 ALERT_COOLDOWN_SECONDS = 30
-
-KEY_VALUE_PATTERN = re.compile(r"\b([A-Z]+)=([^\s]+)")
 
 
 @dataclass(frozen=True)
@@ -50,7 +47,7 @@ def _utc_now() -> datetime:
 
 
 def _line(status: str, message: str) -> None:
-    print(f"[{status}] {message}")
+    print(f"[{status}] {message}", flush=True)
 
 
 def ok(message: str) -> None:
@@ -74,14 +71,24 @@ def load_json(path: Path) -> dict[str, object]:
     return data if isinstance(data, dict) else {}
 
 
+def parse_kernel_fields(line: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for token in line.split():
+        if "=" not in token:
+            continue
+        key, value = token.split("=", 1)
+        fields[key] = value
+    return fields
+
+
 def parse_wan_line(line: str) -> WanLogEvent | None:
     if PREFIX not in line:
         return None
 
-    values = {key: value for key, value in KEY_VALUE_PATTERN.findall(line)}
+    values = parse_kernel_fields(line)
     src_ip = values.get("SRC", "")
     dst_ip = values.get("DST", "")
-    protocol = values.get("PROTO", "").lower()
+    protocol = values.get("PROTO", "")
     input_interface = values.get("IN", "")
     dst_port_raw = values.get("DPT", "")
 
@@ -290,13 +297,15 @@ def print_iptables_rule() -> int:
 
 
 def sample_wan_lines() -> list[str]:
-    src_ip = "203.0.113.45"
-    dst_ip = "198.51.100.10"
+    src_ip = "192.168.68.2"
+    dst_ip = "192.168.68.13"
     return [
         (
-            "kernel: NETGUARD_WAN IN=wan0 OUT= MAC=00:11:22:33:44:55 "
-            f"SRC={src_ip} DST={dst_ip} LEN=60 TOS=0x00 PREC=0x00 TTL=52 "
-            f"ID={40000 + offset} PROTO=TCP SPT=44000 DPT={port} WINDOW=64240 SYN"
+            "kernel: NETGUARD_WAN IN=enp0s31f6 OUT= "
+            "MAC=00:11:22:33:44:55:66:77:88:99:aa:bb:08:00 "
+            f"SRC={src_ip} DST={dst_ip} LEN=60 TOS=0x00 PREC=0x00 TTL=64 "
+            f"ID={40000 + offset} PROTO=TCP SPT={58433 + offset} DPT={port} "
+            "WINDOW=64240 RES=0x00 SYN URGP=0"
         )
         for offset, port in enumerate(range(10000, 10000 + PORT_SCAN_THRESHOLD))
     ]
@@ -333,7 +342,7 @@ def run_test_parse() -> int:
     return 0
 
 
-def follow_kernel_logs() -> int:
+def follow_kernel_logs(verbose: bool = False) -> int:
     detector = WanPortScanDetector()
     try:
         process = subprocess.Popen(
@@ -352,6 +361,9 @@ def follow_kernel_logs() -> int:
 
     try:
         for line in process.stdout:
+            if verbose and PREFIX in line:
+                ok(f"received {PREFIX} line")
+
             event = parse_wan_line(line)
             if event is None:
                 continue
@@ -400,10 +412,20 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="print the safe iptables LOG rule without applying it",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print when NETGUARD_WAN log lines are received",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except AttributeError:
+        pass
+
     args = parse_args()
     if args.print_iptables_rule:
         return print_iptables_rule()
@@ -414,7 +436,7 @@ def main() -> int:
     if args.dry_run or args.status:
         return print_status()
 
-    return follow_kernel_logs()
+    return follow_kernel_logs(verbose=args.verbose)
 
 
 if __name__ == "__main__":
