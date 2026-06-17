@@ -14,6 +14,8 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/home/mtech/zeek-ids
+# Idempotent: installs only the NETGUARD_WAN LOG rule and does not alter unrelated firewall rules.
+ExecStartPre=/home/mtech/zeek-ids/venv/bin/python scripts/wan_iptables_rule.py --install --apply
 ExecStart=/home/mtech/zeek-ids/venv/bin/python -u scripts/wan_log_monitor.py
 Restart=always
 RestartSec=10
