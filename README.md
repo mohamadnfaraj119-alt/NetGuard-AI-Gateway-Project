@@ -54,6 +54,35 @@ python scripts/state_tracker.py --analyze
 | Signature  | XGBoost 99.49%  | Attack classification |
 | Risk Engine| Weighted Score  | 0-100 risk score |
 
+## v7.6 WAN Monitor Milestone
+
+Verified on branch `v7.6-self-adaptive-gateway` at stable tag
+`v7.6-wan-monitor-stable`.
+
+- WAN monitor reads live kernel logs with
+  `journalctl -k -f -o cat -n 0`.
+- Added iptables LOG rule helper: `scripts/wan_iptables_rule.py`.
+- Helper supports safe `--status`, `--print`, `--install`, and `--remove`
+  modes, runs as dry-run by default, and requires `--apply` for real changes.
+- Helper is idempotent and does not duplicate the `NETGUARD_WAN` LOG rule.
+- Installed and enabled systemd service: `netguard-wan-monitor.service`.
+- Service uses `ExecStartPre` to install the LOG rule on start and reboot.
+- Reboot test passed.
+- Final scan test after reboot generated a `wan_port_scan` alert.
+
+Verified alert fields:
+
+| Field | Value |
+|-------|-------|
+| source | `wan_log_monitor` |
+| input_interface | `enp0s31f6` |
+| src_ip | `192.168.68.2` |
+| dst_ip | `192.168.68.13` |
+| unique_dst_ports | `25` |
+| window_seconds | `30` |
+| severity | `high` |
+| risk_score | `90.0` |
+
 ## Philosophy
 
 - Risk Score — not binary decision  
