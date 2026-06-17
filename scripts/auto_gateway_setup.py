@@ -49,6 +49,16 @@ def load_network_profile() -> dict[str, Any]:
 
 
 def select_lan_subnet(profile: dict[str, Any]) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
+    lan = profile.get("lan")
+    if isinstance(lan, dict) and isinstance(lan.get("cidr"), str):
+        try:
+            network = ipaddress.ip_network(lan["cidr"], strict=False)
+        except ValueError:
+            status("WARN", f"ignoring invalid lan.cidr: {lan['cidr']}")
+        else:
+            status("OK", f"selected LAN subnet from config lan.cidr: {network}")
+            return network
+
     monitored = profile.get("monitored_networks")
     if isinstance(monitored, list):
         for item in monitored:
@@ -59,11 +69,42 @@ def select_lan_subnet(profile: dict[str, Any]) -> ipaddress.IPv4Network | ipaddr
             except ValueError:
                 status("WARN", f"ignoring invalid monitored network: {item}")
                 continue
-            status("OK", f"selected LAN subnet from config: {network}")
+            status("OK", f"selected LAN subnet from config monitored_networks: {network}")
             return network
 
-    status("WARN", f"no valid monitored network found; using default {DEFAULT_LAN_SUBNET}")
+    status("WARN", f"no valid LAN subnet found; using default {DEFAULT_LAN_SUBNET}")
     return DEFAULT_LAN_SUBNET
+
+
+def select_dhcp_range(profile: dict[str, Any],
+                      lan_subnet: ipaddress.IPv4Network | ipaddress.IPv6Network) -> str:
+    lan = profile.get("lan")
+    if not isinstance(lan, dict):
+        status("WARN", "config lan section missing; using example DHCP range")
+        return example_dhcp_range(lan_subnet)
+
+    dhcp_start = lan.get("dhcp_start")
+    dhcp_end = lan.get("dhcp_end")
+    if not isinstance(dhcp_start, str) or not isinstance(dhcp_end, str):
+        status("WARN", "lan.dhcp_start or lan.dhcp_end missing; using example DHCP range")
+        return example_dhcp_range(lan_subnet)
+
+    try:
+        start_ip = ipaddress.ip_address(dhcp_start)
+        end_ip = ipaddress.ip_address(dhcp_end)
+    except ValueError:
+        status("WARN", "configured DHCP range contains an invalid IP; using example DHCP range")
+        return example_dhcp_range(lan_subnet)
+
+    if start_ip not in lan_subnet or end_ip not in lan_subnet:
+        status("WARN", "configured DHCP range is outside LAN subnet; using example DHCP range")
+        return example_dhcp_range(lan_subnet)
+    if int(start_ip) > int(end_ip):
+        status("WARN", "configured DHCP range start is greater than end; using example DHCP range")
+        return example_dhcp_range(lan_subnet)
+
+    status("OK", f"selected DHCP range from config lan section: {start_ip} - {end_ip}")
+    return f"{start_ip} - {end_ip}"
 
 
 def run_ip_json(args: list[str]) -> list[dict[str, Any]]:
@@ -219,6 +260,7 @@ def example_dhcp_range(network: ipaddress.IPv4Network | ipaddress.IPv6Network) -
 
 def print_plan(mode: str, wan: dict[str, Any], lan: dict[str, Any],
                lan_subnet: ipaddress.IPv4Network | ipaddress.IPv6Network,
+               dhcp_range: str,
                conflict: bool) -> None:
     print()
     print("Dry-run gateway setup plan")
@@ -235,7 +277,7 @@ def print_plan(mode: str, wan: dict[str, Any], lan: dict[str, Any],
     print("Selected demo LAN plan:")
     print(f"  LAN subnet: {lan_subnet}")
     print(f"  Gateway LAN IP: {gateway_ip_for(lan_subnet)}")
-    print(f"  DHCP range: {example_dhcp_range(lan_subnet)} (example only)")
+    print(f"  DHCP range: {dhcp_range}")
     print()
     print("Would change in a future --apply implementation:")
     print("  - netplan: assign LAN interface static gateway IP")
@@ -286,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
 
     profile = load_network_profile()
     lan_subnet = select_lan_subnet(profile)
+    dhcp_range = select_dhcp_range(profile, lan_subnet)
     configured_lan = None
     gateway = profile.get("gateway")
     if isinstance(gateway, dict) and isinstance(gateway.get("lan_interface"), str):
@@ -303,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         status("OK", "no WAN/LAN subnet conflict detected")
 
-    print_plan(args.mode, wan, lan, lan_subnet, conflict)
+    print_plan(args.mode, wan, lan, lan_subnet, dhcp_range, conflict)
     status("OK", "dry-run completed safely")
     return 0
 
