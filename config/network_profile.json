@@ -1,0 +1,28 @@
+{
+  "profile_name": "netguard-ai-gateway-v7.6",
+  "profile_version": "7.6",
+  "gateway_mode": true,
+  "gateway": {
+    "hostname": "netguard-gateway",
+    "gateway_ip": "192.168.68.13",
+    "wan_interface": "wan0",
+    "lan_interface": "lan0"
+  },
+  "monitored_networks": [
+    "192.168.1.0/24"
+  ],
+  "trusted_networks": [
+    "192.168.68.0/24"
+  ],
+  "zeek": {
+    "log_dir": ".",
+    "required_logs": [
+      "conn.log"
+    ]
+  },
+  "runtime": {
+    "data_dir": "data",
+    "logs_dir": "logs",
+    "models_dir": "models"
+  }
+}
