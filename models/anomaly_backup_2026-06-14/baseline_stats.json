@@ -1,0 +1,303 @@
+{
+  "trained_at": "2026-06-10 23:32:42",
+  "training_files": [
+    "data/windows/windows_full_training.csv"
+  ],
+  "n_windows": 85556,
+  "n_features": 36,
+  "normal_pct": 99.0,
+  "score_mean": 0.1426,
+  "score_p95": 0.4579,
+  "score_p99": 0.7254,
+  "score_max": 1.0,
+  "baseline_stats": {
+    "connections_30s": {
+      "mean": 3.4968,
+      "std": 20.2275,
+      "median": 1.0,
+      "p95": 11.0,
+      "p99": 41.0,
+      "max": 593.0
+    },
+    "unique_dst_ports_30s": {
+      "mean": 0.8321,
+      "std": 0.8617,
+      "median": 1.0,
+      "p95": 3.0,
+      "p99": 4.0,
+      "max": 8.0
+    },
+    "unique_dst_ips_30s": {
+      "mean": 1.43,
+      "std": 4.5459,
+      "median": 1.0,
+      "p95": 4.0,
+      "p99": 10.0,
+      "max": 92.0
+    },
+    "failed_conn_rate_30s": {
+      "mean": 0.0424,
+      "std": 0.1874,
+      "median": 0.0,
+      "p95": 0.2291,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "dns_rate_30s": {
+      "mean": 0.0464,
+      "std": 0.163,
+      "median": 0.0,
+      "p95": 0.1333,
+      "p99": 0.6333,
+      "max": 6.4
+    },
+    "avg_conn_duration_30s": {
+      "mean": 0.9643,
+      "std": 33.5779,
+      "median": 0.049,
+      "p95": 2.6061,
+      "p99": 11.5537,
+      "max": 6343.6244
+    },
+    "outbound_ratio_30s": {
+      "mean": 0.617,
+      "std": 0.4839,
+      "median": 1.0,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "bytes_per_sec_30s": {
+      "mean": 2397.3128,
+      "std": 276400.1589,
+      "median": 2.93,
+      "p95": 835.0575,
+      "p99": 15695.61,
+      "max": 68978940.67
+    },
+    "port_entropy_30s": {
+      "mean": 0.009,
+      "std": 0.0238,
+      "median": 0.0,
+      "p95": 0.0625,
+      "p99": 0.0976,
+      "max": 0.1719
+    },
+    "burst_score_30s": {
+      "mean": 0.0229,
+      "std": 0.0562,
+      "median": 0.0,
+      "p95": 0.1556,
+      "p99": 0.237,
+      "max": 0.8676
+    },
+    "conn_rate_per_ip_30s": {
+      "mean": 0.1153,
+      "std": 0.6739,
+      "median": 0.0333,
+      "p95": 0.3667,
+      "p99": 1.3667,
+      "max": 19.7667
+    },
+    "unique_ports_per_ip_30s": {
+      "mean": 0.8228,
+      "std": 0.8495,
+      "median": 1.0,
+      "p95": 2.0,
+      "p99": 4.0,
+      "max": 8.0
+    },
+    "connections_1m": {
+      "mean": 6.9907,
+      "std": 39.5213,
+      "median": 2.0,
+      "p95": 21.0,
+      "p99": 75.0,
+      "max": 1083.0
+    },
+    "unique_dst_ports_1m": {
+      "mean": 1.1162,
+      "std": 0.9788,
+      "median": 1.0,
+      "p95": 3.0,
+      "p99": 4.0,
+      "max": 8.0
+    },
+    "unique_dst_ips_1m": {
+      "mean": 2.0925,
+      "std": 5.2737,
+      "median": 1.0,
+      "p95": 7.0,
+      "p99": 14.0,
+      "max": 103.0
+    },
+    "failed_conn_rate_1m": {
+      "mean": 0.0476,
+      "std": 0.1936,
+      "median": 0.0,
+      "p95": 0.3333,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "dns_rate_1m": {
+      "mean": 0.0463,
+      "std": 0.145,
+      "median": 0.0333,
+      "p95": 0.1667,
+      "p99": 0.5667,
+      "max": 3.9833
+    },
+    "avg_conn_duration_1m": {
+      "mean": 1.2993,
+      "std": 36.1448,
+      "median": 0.0565,
+      "p95": 3.6781,
+      "p99": 15.3456,
+      "max": 6343.6244
+    },
+    "outbound_ratio_1m": {
+      "mean": 0.746,
+      "std": 0.4317,
+      "median": 1.0,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "bytes_per_sec_1m": {
+      "mean": 2397.5506,
+      "std": 202448.7008,
+      "median": 2.93,
+      "p95": 1279.49,
+      "p99": 17607.879,
+      "max": 34490007.2
+    },
+    "port_entropy_1m": {
+      "mean": 0.0148,
+      "std": 0.0293,
+      "median": 0.0,
+      "p95": 0.0862,
+      "p99": 0.108,
+      "max": 0.1721
+    },
+    "burst_score_1m": {
+      "mean": 0.043,
+      "std": 0.0759,
+      "median": 0.0,
+      "p95": 0.1988,
+      "p99": 0.2949,
+      "max": 0.8676
+    },
+    "conn_rate_per_ip_1m": {
+      "mean": 0.115,
+      "std": 0.6584,
+      "median": 0.0333,
+      "p95": 0.3333,
+      "p99": 1.25,
+      "max": 18.05
+    },
+    "unique_ports_per_ip_1m": {
+      "mean": 1.1058,
+      "std": 0.9669,
+      "median": 1.0,
+      "p95": 3.0,
+      "p99": 4.0,
+      "max": 8.0
+    },
+    "connections_5m": {
+      "mean": 34.8437,
+      "std": 186.5023,
+      "median": 10.0,
+      "p95": 94.0,
+      "p99": 308.0,
+      "max": 4544.0
+    },
+    "unique_dst_ports_5m": {
+      "mean": 1.9998,
+      "std": 1.2522,
+      "median": 2.0,
+      "p95": 4.0,
+      "p99": 6.0,
+      "max": 13.0
+    },
+    "unique_dst_ips_5m": {
+      "mean": 5.4239,
+      "std": 8.9556,
+      "median": 2.0,
+      "p95": 17.0,
+      "p99": 37.0,
+      "max": 123.0
+    },
+    "failed_conn_rate_5m": {
+      "mean": 0.0593,
+      "std": 0.2019,
+      "median": 0.0,
+      "p95": 0.4504,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "dns_rate_5m": {
+      "mean": 0.0461,
+      "std": 0.1161,
+      "median": 0.0333,
+      "p95": 0.18,
+      "p99": 0.5015,
+      "max": 3.0167
+    },
+    "avg_conn_duration_5m": {
+      "mean": 2.1822,
+      "std": 26.8195,
+      "median": 0.1795,
+      "p95": 6.0941,
+      "p99": 27.3467,
+      "max": 2327.6259
+    },
+    "outbound_ratio_5m": {
+      "mean": 0.9922,
+      "std": 0.0502,
+      "median": 1.0,
+      "p95": 1.0,
+      "p99": 1.0,
+      "max": 1.0
+    },
+    "bytes_per_sec_5m": {
+      "mean": 2403.0606,
+      "std": 92984.2227,
+      "median": 13.03,
+      "p95": 2907.67,
+      "p99": 16138.878,
+      "max": 6898526.89
+    },
+    "port_entropy_5m": {
+      "mean": 0.0335,
+      "std": 0.0381,
+      "median": 0.0131,
+      "p95": 0.1003,
+      "p99": 0.12,
+      "max": 0.1765
+    },
+    "burst_score_5m": {
+      "mean": 0.1069,
+      "std": 0.1092,
+      "median": 0.1102,
+      "p95": 0.2994,
+      "p99": 0.4348,
+      "max": 1.0
+    },
+    "conn_rate_per_ip_5m": {
+      "mean": 0.1145,
+      "std": 0.6214,
+      "median": 0.0333,
+      "p95": 0.2933,
+      "p99": 1.0267,
+      "max": 15.1467
+    },
+    "unique_ports_per_ip_5m": {
+      "mean": 1.9851,
+      "std": 1.2347,
+      "median": 2.0,
+      "p95": 4.0,
+      "p99": 6.0,
+      "max": 13.0
+    }
+  }
+}
