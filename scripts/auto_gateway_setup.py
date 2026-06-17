@@ -314,13 +314,24 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="print the setup plan without applying changes",
     )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="blocked placeholder for future real setup implementation",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
+    if args.apply:
+        status("BLOCKED", "apply mode is not implemented yet")
+        print("No system files were modified.")
+        print("No netplan, dnsmasq, iptables/nftables, sysctl, or service changes were applied.")
+        return 2
+
     if not args.dry_run:
-        status("FAIL", "--apply is not implemented; rerun with --dry-run")
+        status("FAIL", "select --dry-run for safe planning")
         return 1
 
     print("NetGuard-AI Gateway v7.6 auto setup")
