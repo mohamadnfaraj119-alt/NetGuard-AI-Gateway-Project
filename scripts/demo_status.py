@@ -12,7 +12,7 @@ import csv
 import json
 import shutil
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 REPORT_DIR = BASE_DIR / "data" / "reports"
 ALERTS_LOG = BASE_DIR / "logs" / "alerts.log"
+DEMO_SESSION = BASE_DIR / "logs" / "demo_session.json"
 
 SERVICES = [
     "zeek",
@@ -47,6 +48,25 @@ def load_json(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def parse_timestamp(value: str) -> datetime | None:
+    if not value:
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def demo_session_start() -> datetime | None:
+    session = load_json(DEMO_SESSION)
+    return parse_timestamp(str(session.get("start_time", "")))
 
 
 def service_status(service_name: str) -> tuple[str, str]:
@@ -149,21 +169,37 @@ def alert_is_today(alert: dict[str, Any], day: str, source_path: Path) -> bool:
     return value.startswith(day)
 
 
-def print_alerts(day: str) -> None:
+def alert_is_in_session(alert: dict[str, Any], session_start: datetime) -> bool:
+    alert_time = parse_timestamp(str(alert.get("time", "")))
+    return alert_time is not None and alert_time >= session_start
+
+
+def print_alerts(day: str, session_start: datetime | None = None) -> None:
     path, alerts = read_alerts(day)
-    count_today = sum(1 for alert in alerts if alert_is_today(alert, day, path))
+
+    if session_start is None:
+        visible_alerts = alerts
+        count_label = "Alerts count today"
+        count = sum(1 for alert in visible_alerts if alert_is_today(alert, day, path))
+    else:
+        visible_alerts = [
+            alert for alert in alerts
+            if alert_is_in_session(alert, session_start)
+        ]
+        count_label = "Alerts count this session"
+        count = len(visible_alerts)
 
     section("Alerts")
     print(f"Source:             {path.relative_to(BASE_DIR) if path.is_absolute() else path}")
-    print(f"Alerts count today: {count_today}")
+    print(f"{count_label}: {count}")
     print()
     print("Last 20 alerts:")
 
-    if not alerts:
+    if not visible_alerts:
         print("  (none)")
         return
 
-    for alert in alerts[-20:]:
+    for alert in visible_alerts[-20:]:
         timestamp = str(alert.get("time", ""))[:19] or "unknown-time"
         severity = str(alert.get("severity", "")).upper() or "INFO"
         source = str(alert.get("source", "unknown"))
@@ -215,7 +251,7 @@ def main() -> int:
     profile = load_json(NETWORK_PROFILE)
     print_services()
     print_network(profile)
-    print_alerts(day)
+    print_alerts(day, demo_session_start())
     print_risk(day)
     return 0
 
