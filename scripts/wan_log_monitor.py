@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -24,6 +25,7 @@ import alert_writer
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 REPORT_DIR = BASE_DIR / "data" / "reports"
 PREFIX = "NETGUARD_WAN"
 JOURNALCTL_CMD = ["journalctl", "-k", "-f", "-n", "0"]
@@ -61,6 +63,15 @@ def warn(message: str) -> None:
 
 def today() -> str:
     return datetime.now().date().isoformat()
+
+
+def load_json(path: Path) -> dict[str, object]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def parse_wan_line(line: str) -> WanLogEvent | None:
@@ -207,6 +218,77 @@ def print_status() -> int:
     return 0
 
 
+def configured_wan_interface() -> str | None:
+    profile = load_json(NETWORK_PROFILE)
+    gateway = profile.get("gateway")
+    if not isinstance(gateway, dict):
+        return None
+
+    interface = str(gateway.get("wan_interface", "")).strip()
+    if interface and interface.lower() != "auto":
+        return interface
+    return None
+
+
+def default_wan_interface() -> str | None:
+    try:
+        result = subprocess.run(
+            ["ip", "route", "show", "default"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if "dev" not in parts:
+            continue
+        dev_index = parts.index("dev")
+        if dev_index + 1 < len(parts):
+            return parts[dev_index + 1]
+    return None
+
+
+def wan_interface() -> str | None:
+    return configured_wan_interface() or default_wan_interface()
+
+
+def iptables_log_command(interface: str) -> list[str]:
+    return [
+        "sudo",
+        "iptables",
+        "-I",
+        "INPUT",
+        "-i",
+        interface,
+        "-p",
+        "tcp",
+        "-m",
+        "conntrack",
+        "--ctstate",
+        "NEW",
+        "-j",
+        "LOG",
+        "--log-prefix",
+        f"{PREFIX} ",
+        "--log-level",
+        "4",
+    ]
+
+
+def print_iptables_rule() -> int:
+    interface = wan_interface()
+    if not interface:
+        print("[FAIL] unable to resolve WAN interface from config or default route", file=sys.stderr)
+        return 1
+
+    print(shlex.join(iptables_log_command(interface)))
+    return 0
+
+
 def sample_wan_lines() -> list[str]:
     src_ip = "203.0.113.45"
     dst_ip = "198.51.100.10"
@@ -313,11 +395,19 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="parse synthetic NETGUARD_WAN lines and write one test alert",
     )
+    parser.add_argument(
+        "--print-iptables-rule",
+        action="store_true",
+        help="print the safe iptables LOG rule without applying it",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.print_iptables_rule:
+        return print_iptables_rule()
+
     if args.test_parse:
         return run_test_parse()
 
