@@ -203,6 +203,54 @@ Expected results:
 - `/` returns the dashboard HTML.
 - `POST /api/status` returns `405 Method Not Allowed`.
 
+## v8.2 Runtime Smoke Tests
+
+The smoke test is local, read-only, and assumes the status server is already
+running.
+
+Start the local status server:
+
+```bash
+python3 scripts/gateway_status_server.py --host 127.0.0.1 --port 8787
+```
+
+Run the smoke test:
+
+```bash
+python3 scripts/gateway_status_smoke_test.py
+```
+
+Optional custom base URL:
+
+```bash
+python3 scripts/gateway_status_smoke_test.py --base-url http://127.0.0.1:8787
+```
+
+The smoke test checks:
+
+- `GET /healthz`
+- `GET /api/status`
+- `GET /`
+- `POST /api/status` returns `405 Method Not Allowed`
+
+Expected success output:
+
+```text
+[RESULT] SMOKE TEST PASSED
+```
+
+Failure usually means the server is not running, the port or base URL is wrong,
+the dashboard endpoint is not reachable, or the API JSON contract changed
+unexpectedly.
+
+Safety:
+
+- Read-only.
+- Does not call `--apply`.
+- No firewall changes.
+- No iptables changes.
+- No service changes.
+
 Troubleshooting:
 
 - `Address already in use`: another process is already listening on the chosen
