@@ -83,6 +83,22 @@ Verified alert fields:
 | severity | `high` |
 | risk_score | `90.0` |
 
+## v7.7 Self-Adaptive Thresholds Milestone
+
+- v7.7 adds config-driven WAN monitor thresholds.
+- `wan_log_monitor.py` now reads `max_unique_dst_ports_30s` from
+  `config/thresholds_profile.json`.
+- Current effective WAN threshold is 5 unique destination ports within 30
+  seconds.
+- `threshold_profile_builder.py` builds `config/thresholds_profile.json` from
+  `data/baselines/ip_baselines.json`.
+- For v1, the builder uses only `global_baseline` and intentionally ignores
+  per-IP baselines because per-IP baselines may contain scan/test outliers.
+- Builder is safe by default: dry-run unless `--apply` is passed.
+- `--apply` backs up the existing thresholds profile before writing.
+- Verified test: scan of ports `11000..11004` generated `wan_port_scan` with
+  `unique_dst_ports=5`.
+
 ## Philosophy
 
 - Risk Score — not binary decision  

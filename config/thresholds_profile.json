@@ -1,6 +1,6 @@
 {
-  "profile_name": "netguard-ai-thresholds-v7.6",
-  "profile_version": "7.6",
+  "profile_name": "netguard-ai-thresholds-v7.7",
+  "profile_version": "7.7",
   "risk_score_bands": {
     "low": 25,
     "medium": 50,
@@ -8,8 +8,8 @@
     "critical": 90
   },
   "traffic_limits": {
-    "max_connections_30s": 35,
-    "max_unique_dst_ports_30s": 5,
+    "max_connections_30s": 35.0,
+    "max_unique_dst_ports_30s": 5.0,
     "max_dns_rate_1m": 2.117
   },
   "anomaly": {
