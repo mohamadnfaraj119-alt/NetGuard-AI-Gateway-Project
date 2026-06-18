@@ -155,6 +155,80 @@ Safety notes:
 - No POST, PUT, or DELETE actions.
 - `--apply` remains protected and not implemented.
 
+## v8.0 Professional Gateway Dashboard
+
+- `dashboard/index.html` is now a professional Gateway Control / Readiness
+  Dashboard.
+- The dashboard shows gateway readiness, failure and warning counts, total
+  checks, and grouped OK/WARN/FAIL readiness details.
+- Live mode reads from `/api/status`.
+- Demo OK, Demo WARN, and Demo FAIL modes use local in-browser mock JSON only.
+- The dashboard does not provide remediation actions, auto-fix controls, or
+  backend write actions.
+
+## v8.1 Dashboard Runtime Polish
+
+Start the local read-only dashboard server:
+
+```bash
+python3 scripts/gateway_status_server.py --host 127.0.0.1 --port 8787
+```
+
+Open the dashboard:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Run the same checks from the terminal:
+
+```bash
+python3 scripts/gateway_doctor.py
+python3 scripts/gateway_doctor.py --json
+```
+
+API smoke tests:
+
+```bash
+curl http://127.0.0.1:8787/healthz
+curl http://127.0.0.1:8787/api/status
+curl -I http://127.0.0.1:8787/
+curl -i -X POST http://127.0.0.1:8787/api/status
+```
+
+Expected results:
+
+- `/healthz` returns `{"status": "ok"}`.
+- `/api/status` returns the structured gateway doctor JSON.
+- `/` returns the dashboard HTML.
+- `POST /api/status` returns `405 Method Not Allowed`.
+
+Troubleshooting:
+
+- `Address already in use`: another process is already listening on the chosen
+  port. Stop that process or run the server on another local port, for example
+  `--port 8788`.
+- `NAT readiness unknown`: this can happen when iptables NAT table inspection
+  requires root permissions. The dashboard and API remain read-only; run
+  `sudo python3 scripts/gateway_doctor.py` only when you want a manual local
+  readiness check with permission to inspect NAT state.
+- Dashboard shows demo data: select `Live` mode to read from `/api/status`.
+  Demo modes are browser-only mock states for testing the interface.
+
+Dashboard scope:
+
+- Current dashboard: local gateway readiness and operational status.
+- Future Grafana dashboard: monitoring and analytics for time-series charts,
+  logs, alert trends, and longer-term observability.
+- Grafana is not part of v8.1.
+
+Screenshot notes:
+
+- Start the local dashboard server.
+- Open `http://127.0.0.1:8787/`.
+- Capture Live, Demo OK, Demo WARN, and Demo FAIL states if release screenshots
+  are needed.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
