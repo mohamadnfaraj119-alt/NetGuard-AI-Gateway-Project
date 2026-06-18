@@ -99,6 +99,22 @@ Verified alert fields:
 - Verified test: scan of ports `11000..11004` generated `wan_port_scan` with
   `unique_dst_ports=5`.
 
+## v7.8 Portable Gateway Doctor
+
+- New script: `scripts/gateway_doctor.py`.
+- Purpose: read-only gateway readiness checker.
+- Checks `network_profile`, default route, WAN interface, LAN interface, IP
+  forwarding, NAT readiness, Zeek monitored interface, and systemd services.
+- Usage:
+
+```bash
+python3 scripts/gateway_doctor.py
+sudo python3 scripts/gateway_doctor.py
+```
+
+`sudo` is only needed when the host requires root privileges to read NAT table
+status. `--apply` is intentionally blocked and applies no changes.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
