@@ -3,21 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NetGuard-AI Gateway Status</title>
+  <title>NetGuard-AI Gateway Control</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f5f7fa;
-      --panel: #ffffff;
-      --text: #17202a;
-      --muted: #667085;
-      --line: #d9e1ea;
-      --ok: #147d4f;
-      --warn: #a15c00;
-      --fail: #b42318;
-      --ok-bg: #e8f6ef;
-      --warn-bg: #fff3d6;
-      --fail-bg: #fde8e7;
+      color-scheme: dark;
+      --bg: #050b10;
+      --surface: #0c151d;
+      --surface-2: #111f2a;
+      --surface-3: #172a37;
+      --line: #213947;
+      --line-strong: #315266;
+      --text: #eef8fb;
+      --muted: #91a9b5;
+      --quiet: #66818f;
+      --ok: #33d69f;
+      --warn: #f7c948;
+      --fail: #ff6b7a;
+      --info: #4cc9f0;
+      --ok-soft: rgba(51, 214, 159, 0.13);
+      --warn-soft: rgba(247, 201, 72, 0.15);
+      --fail-soft: rgba(255, 107, 122, 0.15);
+      --info-soft: rgba(76, 201, 240, 0.12);
+      --shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
     }
 
     * {
@@ -26,245 +33,802 @@
 
     body {
       margin: 0;
-      background: var(--bg);
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(76, 201, 240, 0.08), transparent 310px),
+        radial-gradient(circle at 86% 4%, rgba(51, 214, 159, 0.08), transparent 300px),
+        var(--bg);
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.45;
     }
 
     main {
-      width: min(980px, calc(100% - 32px));
-      margin: 32px auto;
+      width: min(1220px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 26px 0 24px;
     }
 
-    header {
+    .topbar,
+    .hero,
+    .card,
+    .breakdown-panel,
+    .notice {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent), var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 20px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(76, 201, 240, 0.62);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(76, 201, 240, 0.24), rgba(51, 214, 159, 0.12));
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 2px solid var(--info);
+      border-top-color: transparent;
+      border-radius: 50%;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
     }
 
     h1 {
-      margin: 0;
-      font-size: 28px;
-      font-weight: 700;
+      font-size: 18px;
+      font-weight: 780;
     }
 
-    .updated {
-      margin-top: 6px;
+    .eyebrow {
+      color: var(--quiet);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(5, 11, 16, 0.44);
+    }
+
+    .mode-button {
+      min-width: auto;
+      padding: 7px 10px;
+      border-color: transparent;
+      background: transparent;
       color: var(--muted);
-      font-size: 14px;
+      font-size: 12px;
+    }
+
+    .mode-button:hover,
+    .mode-button.active {
+      border-color: rgba(76, 201, 240, 0.45);
+      background: var(--info-soft);
+      color: var(--text);
+    }
+
+    .demo-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(76, 201, 240, 0.42);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--info);
+      background: var(--info-soft);
+      font-size: 12px;
+      font-weight: 760;
+      white-space: nowrap;
     }
 
     button {
-      border: 1px solid #1f5f99;
-      background: #1f6fb2;
-      color: #ffffff;
+      border: 1px solid #2c86a8;
       border-radius: 6px;
-      padding: 10px 14px;
-      font: inherit;
+      background: #0d5b76;
+      color: #f2fbff;
       cursor: pointer;
-      min-width: 96px;
+      font: inherit;
+      font-weight: 760;
+      min-width: 98px;
+      padding: 10px 15px;
+    }
+
+    button:hover {
+      background: #117091;
     }
 
     button:disabled {
       cursor: wait;
-      opacity: 0.7;
+      opacity: 0.62;
+    }
+
+    .timestamp {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 24px;
+      margin-bottom: 16px;
+      background:
+        linear-gradient(120deg, rgba(76, 201, 240, 0.12), transparent 44%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+        var(--surface);
+    }
+
+    .hero-title {
+      margin-top: 8px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+      font-weight: 820;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .hero-copy {
+      margin-top: 12px;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 10px;
+      justify-items: end;
+    }
+
+    .pill,
+    .dot-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 820;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 16px currentColor;
+      flex: 0 0 auto;
+    }
+
+    .OK {
+      color: var(--ok);
+      background: var(--ok-soft);
+    }
+
+    .WARN {
+      color: var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .FAIL {
+      color: var(--fail);
+      background: var(--fail-soft);
+    }
+
+    .UNKNOWN {
+      color: var(--info);
+      background: var(--info-soft);
+    }
+
+    .notice {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      color: #ffe8a3;
+      background: linear-gradient(180deg, rgba(247, 201, 72, 0.12), rgba(247, 201, 72, 0.05)), var(--surface);
+      border-color: rgba(247, 201, 72, 0.45);
+    }
+
+    .notice strong {
+      display: block;
+      color: #fff3c4;
+      margin-bottom: 2px;
+    }
+
+    .notice p {
+      color: #dcc57a;
+      font-size: 14px;
     }
 
     .summary {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
+      grid-template-columns: minmax(260px, 1.6fr) repeat(3, minmax(140px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
     }
 
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
+    .card {
+      min-height: 124px;
       padding: 16px;
     }
 
-    .label {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 6px;
+    .card-label {
+      color: var(--quiet);
+      font-size: 12px;
+      font-weight: 760;
+      text-transform: uppercase;
     }
 
-    .value {
+    .card-value {
+      margin-top: 12px;
+      font-size: 30px;
+      font-weight: 830;
+      overflow-wrap: anywhere;
+    }
+
+    .state-card .card-value {
       font-size: 22px;
-      font-weight: 700;
+      line-height: 1.22;
+    }
+
+    .card-meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 8px 0 12px;
+    }
+
+    .section-title h2 {
+      font-size: 20px;
+      font-weight: 780;
+    }
+
+    .section-title p {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .breakdown {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .breakdown-panel {
+      overflow: hidden;
+      min-height: 260px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-header h3 {
+      font-size: 15px;
+      font-weight: 760;
     }
 
     .checks {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
+      display: grid;
     }
 
     .check {
       display: grid;
-      grid-template-columns: 82px 1fr;
-      gap: 12px;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
       align-items: start;
-      padding: 12px 16px;
-      border-top: 1px solid var(--line);
+      padding: 14px 16px;
+      border-top: 1px solid rgba(33, 57, 71, 0.72);
     }
 
     .check:first-child {
       border-top: 0;
     }
 
-    .badge {
-      display: inline-flex;
-      justify-content: center;
-      border-radius: 999px;
-      padding: 3px 10px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .OK {
-      background: var(--ok-bg);
-      color: var(--ok);
-    }
-
-    .WARN {
-      background: var(--warn-bg);
-      color: var(--warn);
-    }
-
-    .FAIL {
-      background: var(--fail-bg);
-      color: var(--fail);
-    }
-
-    .message {
+    .check-message {
+      color: #dceaf0;
+      font-size: 14px;
       overflow-wrap: anywhere;
     }
 
-    .error {
-      border-color: #efb5b0;
-      background: #fff8f7;
-      color: var(--fail);
-      margin-bottom: 16px;
+    .empty {
+      padding: 18px 16px;
+      color: var(--muted);
+      font-size: 14px;
     }
 
-    @media (max-width: 700px) {
+    .empty-title {
+      color: var(--text);
+      font-weight: 760;
+      margin-bottom: 4px;
+    }
+
+    footer {
+      margin-top: 18px;
+      color: var(--quiet);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 980px) {
+      .topbar,
+      .hero {
+        align-items: flex-start;
+        grid-template-columns: 1fr;
+      }
+
+      .hero-side {
+        justify-items: start;
+      }
+
+      .summary,
+      .breakdown {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
       main {
-        width: min(100% - 20px, 980px);
-        margin: 20px auto;
+        width: min(100% - 20px, 1220px);
+        padding-top: 14px;
       }
 
-      header {
-        display: block;
+      .topbar,
+      .actions {
+        align-items: stretch;
+        flex-direction: column;
       }
 
+      .actions,
+      .mode-switch,
+      .mode-button,
+      .demo-label,
       button {
         width: 100%;
-        margin-top: 14px;
       }
 
-      .summary {
-        grid-template-columns: 1fr;
+      .mode-switch {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .timestamp {
+        white-space: normal;
+      }
+
+      .hero,
+      .card {
+        padding: 16px;
       }
 
       .check {
         grid-template-columns: 1fr;
-        gap: 8px;
       }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <div>
-        <h1>NetGuard-AI Gateway Status</h1>
-        <div class="updated" id="updated">Last updated: never</div>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <div class="eyebrow">Local readiness console</div>
+          <h1>NetGuard-AI Gateway Control</h1>
+        </div>
       </div>
-      <button id="refresh" type="button">Refresh</button>
+      <div class="actions">
+        <div class="mode-switch" aria-label="Dashboard data mode">
+          <button class="mode-button active" type="button" data-mode="live">Live</button>
+          <button class="mode-button" type="button" data-mode="demo-ok">Demo OK</button>
+          <button class="mode-button" type="button" data-mode="demo-warn">Demo WARN</button>
+          <button class="mode-button" type="button" data-mode="demo-fail">Demo FAIL</button>
+        </div>
+        <span class="demo-label" id="demo-label" hidden>Demo data — no system changes</span>
+        <span class="timestamp" id="updated">Last updated: never</span>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
     </header>
 
-    <section id="error" class="panel error" hidden></section>
-
-    <section class="summary" aria-label="Gateway status summary">
-      <div class="panel">
-        <div class="label">Final result</div>
-        <div class="value" id="final-result">Loading...</div>
+    <section class="hero" aria-label="Gateway readiness status">
+      <div>
+        <div class="eyebrow">Gateway readiness</div>
+        <div class="hero-title" id="hero-result">Loading status...</div>
+        <p class="hero-copy" id="hero-explanation">Collecting local readiness checks from the gateway doctor.</p>
       </div>
-      <div class="panel">
-        <div class="label">Failures</div>
-        <div class="value" id="fail-count">-</div>
-      </div>
-      <div class="panel">
-        <div class="label">Warnings</div>
-        <div class="value" id="warn-count">-</div>
+      <div class="hero-side">
+        <span class="pill UNKNOWN" id="hero-pill"><span class="dot"></span><span>LOADING</span></span>
+        <span class="dot-label UNKNOWN" id="transport-pill"><span class="dot"></span><span>API pending</span></span>
       </div>
     </section>
 
-    <section class="checks" id="checks" aria-label="Gateway checks"></section>
+    <section class="notice" id="warning-banner" hidden>
+      <span class="dot"></span>
+      <div>
+        <strong>Warnings detected</strong>
+        <p id="warning-copy">Review warning checks before treating this gateway as fully ready.</p>
+      </div>
+    </section>
+
+    <section class="summary" aria-label="Summary cards">
+      <div class="card state-card">
+        <div class="card-label">Gateway state</div>
+        <div class="card-value" id="state-value">Loading...</div>
+        <div class="card-meta" id="state-meta">Waiting for status response</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Failures</div>
+        <div class="card-value" id="fail-count">-</div>
+        <div class="card-meta">Blocking readiness checks</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Warnings</div>
+        <div class="card-value" id="warn-count">-</div>
+        <div class="card-meta">Degraded readiness signals</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total checks</div>
+        <div class="card-value" id="total-count">-</div>
+        <div class="card-meta">Checks returned by local API</div>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <div>
+        <h2>Readiness breakdown</h2>
+        <p>Grouped by current check status from the local gateway status API.</p>
+      </div>
+    </div>
+
+    <section class="breakdown" aria-label="Readiness breakdown">
+      <section class="breakdown-panel" aria-labelledby="ok-title">
+        <div class="panel-header">
+          <h3 id="ok-title">OK checks</h3>
+          <span class="pill OK" id="ok-count"><span class="dot"></span><span>0</span></span>
+        </div>
+        <div class="checks" id="ok-checks"></div>
+      </section>
+
+      <section class="breakdown-panel" aria-labelledby="warn-title">
+        <div class="panel-header">
+          <h3 id="warn-title">WARN checks</h3>
+          <span class="pill WARN" id="warn-group-count"><span class="dot"></span><span>0</span></span>
+        </div>
+        <div class="checks" id="warn-checks"></div>
+      </section>
+
+      <section class="breakdown-panel" aria-labelledby="fail-title">
+        <div class="panel-header">
+          <h3 id="fail-title">FAIL checks</h3>
+          <span class="pill FAIL" id="fail-group-count"><span class="dot"></span><span>0</span></span>
+        </div>
+        <div class="checks" id="fail-checks"></div>
+      </section>
+    </section>
+
+    <footer>Read-only local status dashboard</footer>
   </main>
 
   <script>
     const refreshButton = document.getElementById("refresh");
+    const modeButtons = Array.from(document.querySelectorAll(".mode-button"));
+    const demoLabel = document.getElementById("demo-label");
     const updated = document.getElementById("updated");
-    const errorBox = document.getElementById("error");
-    const finalResult = document.getElementById("final-result");
+    const heroResult = document.getElementById("hero-result");
+    const heroExplanation = document.getElementById("hero-explanation");
+    const heroPill = document.getElementById("hero-pill");
+    const transportPill = document.getElementById("transport-pill");
+    const warningBanner = document.getElementById("warning-banner");
+    const warningCopy = document.getElementById("warning-copy");
+    const stateValue = document.getElementById("state-value");
+    const stateMeta = document.getElementById("state-meta");
     const failCount = document.getElementById("fail-count");
     const warnCount = document.getElementById("warn-count");
-    const checks = document.getElementById("checks");
+    const totalCount = document.getElementById("total-count");
+    const lists = {
+      OK: document.getElementById("ok-checks"),
+      WARN: document.getElementById("warn-checks"),
+      FAIL: document.getElementById("fail-checks")
+    };
+    const groupCounts = {
+      OK: document.querySelector("#ok-count span:last-child"),
+      WARN: document.querySelector("#warn-group-count span:last-child"),
+      FAIL: document.querySelector("#fail-group-count span:last-child")
+    };
+    const demoPayloads = {
+      "demo-ok": {
+        final_result: "READY as NetGuard-AI gateway",
+        fail_count: 0,
+        warn_count: 0,
+        checks: [
+          {status: "OK", message: "network_profile loaded"},
+          {status: "OK", message: "read-only mode confirmed"},
+          {status: "OK", message: "default route: default via 192.168.68.55 dev enp0s31f6"},
+          {status: "OK", message: "WAN interface detected: enp0s31f6 (default route)"},
+          {status: "OK", message: "LAN interface detected: enx00e04c6817c4 (active non-WAN interface)"},
+          {status: "OK", message: "IP forwarding enabled"},
+          {status: "OK", message: "NAT readiness confirmed for WAN interface enp0s31f6"},
+          {status: "OK", message: "service zeek active"}
+        ]
+      },
+      "demo-warn": {
+        final_result: "READY with warnings as NetGuard-AI gateway",
+        fail_count: 0,
+        warn_count: 2,
+        checks: [
+          {status: "OK", message: "network_profile loaded"},
+          {status: "OK", message: "read-only mode confirmed"},
+          {status: "OK", message: "WAN interface detected: enp0s31f6 (default route)"},
+          {status: "WARN", message: "LAN interface not detected: not detected"},
+          {status: "WARN", message: "NAT readiness unknown: permission denied while reading NAT table"},
+          {status: "OK", message: "service zeek active"},
+          {status: "OK", message: "service netguard-collector active"}
+        ]
+      },
+      "demo-fail": {
+        final_result: "NOT READY as NetGuard-AI gateway",
+        fail_count: 3,
+        warn_count: 1,
+        checks: [
+          {status: "OK", message: "network_profile loaded"},
+          {status: "OK", message: "read-only mode confirmed"},
+          {status: "FAIL", message: "default route: default route not found"},
+          {status: "FAIL", message: "WAN interface not detected: default route not found"},
+          {status: "FAIL", message: "IP forwarding disabled"},
+          {status: "WARN", message: "Zeek interface unknown: node.cfg not found or interface not configured"}
+        ]
+      }
+    };
+    let activeMode = "live";
 
     function setText(element, value) {
       element.textContent = value;
     }
 
-    function showError(message) {
-      errorBox.hidden = false;
-      setText(errorBox, message);
+    function setPill(element, status, label) {
+      element.className = `pill ${status}`;
+      element.innerHTML = `<span class="dot"></span><span>${label}</span>`;
     }
 
-    function clearError() {
-      errorBox.hidden = true;
-      setText(errorBox, "");
+    function statusFromResult(result) {
+      const value = String(result);
+      if (value.startsWith("NOT READY")) {
+        return "FAIL";
+      }
+      if (value.includes("warnings")) {
+        return "WARN";
+      }
+      if (value.startsWith("READY")) {
+        return "OK";
+      }
+      return "UNKNOWN";
     }
 
-    function renderChecks(items) {
-      checks.innerHTML = "";
+    function explanationFor(status) {
+      if (status === "FAIL") {
+        return "One or more readiness checks failed. Review failed items before relying on this gateway.";
+      }
+      if (status === "WARN") {
+        return "Gateway readiness is usable but degraded. Review warning checks before treating it as fully ready.";
+      }
+      if (status === "OK") {
+        return "All readiness checks returned OK. The local gateway profile is ready.";
+      }
+      return "Gateway readiness is not available yet. Refresh to query the local status API.";
+    }
 
-      if (!Array.isArray(items) || items.length === 0) {
-        const row = document.createElement("div");
-        row.className = "check";
-        row.textContent = "No checks returned.";
-        checks.appendChild(row);
+    function emptyMessage(status) {
+      if (status === "OK") {
+        return ["No OK checks returned", "The local status API did not report passing checks."];
+      }
+      if (status === "WARN") {
+        return ["No warnings", "No degraded readiness checks are currently reported."];
+      }
+      return ["No failures", "No blocking readiness checks are currently reported."];
+    }
+
+    function makeCheck(item) {
+      const row = document.createElement("div");
+      row.className = "check";
+
+      const status = String(item.status || "WARN");
+      const pill = document.createElement("span");
+      pill.className = `pill ${status}`;
+
+      const dot = document.createElement("span");
+      dot.className = "dot";
+
+      const label = document.createElement("span");
+      label.textContent = status;
+
+      const message = document.createElement("div");
+      message.className = "check-message";
+      message.textContent = String(item.message || "");
+
+      pill.appendChild(dot);
+      pill.appendChild(label);
+      row.appendChild(pill);
+      row.appendChild(message);
+      return row;
+    }
+
+    function renderGroup(status, items) {
+      const list = lists[status];
+      list.innerHTML = "";
+      setText(groupCounts[status], items.length.toString());
+
+      if (items.length === 0) {
+        const empty = document.createElement("div");
+        const title = document.createElement("div");
+        const copy = document.createElement("div");
+        const text = emptyMessage(status);
+
+        empty.className = "empty";
+        title.className = "empty-title";
+        title.textContent = text[0];
+        copy.textContent = text[1];
+
+        empty.appendChild(title);
+        empty.appendChild(copy);
+        list.appendChild(empty);
         return;
       }
 
       for (const item of items) {
-        const row = document.createElement("div");
-        row.className = "check";
-
-        const badge = document.createElement("span");
-        const status = String(item.status || "WARN");
-        badge.className = `badge ${status}`;
-        badge.textContent = status;
-
-        const message = document.createElement("div");
-        message.className = "message";
-        message.textContent = String(item.message || "");
-
-        row.appendChild(badge);
-        row.appendChild(message);
-        checks.appendChild(row);
+        list.appendChild(makeCheck(item));
       }
+    }
+
+    function renderChecks(items) {
+      const checks = Array.isArray(items) ? items : [];
+      const grouped = {OK: [], WARN: [], FAIL: []};
+
+      for (const item of checks) {
+        const status = String(item.status || "WARN");
+        if (grouped[status]) {
+          grouped[status].push(item);
+        }
+      }
+
+      renderGroup("OK", grouped.OK);
+      renderGroup("WARN", grouped.WARN);
+      renderGroup("FAIL", grouped.FAIL);
+      setText(totalCount, checks.length.toString());
+      return grouped;
+    }
+
+    function updateWarningBanner(warnings, failures) {
+      if (warnings > 0) {
+        warningBanner.hidden = false;
+        setText(warningCopy, `${warnings} warning check${warnings === 1 ? "" : "s"} detected. Review the WARN section for readiness drift.`);
+        return;
+      }
+
+      if (failures > 0) {
+        warningBanner.hidden = true;
+        return;
+      }
+
+      warningBanner.hidden = true;
+    }
+
+    function renderStatus(data, sourceLabel) {
+      const result = data.final_result || "unknown";
+      const status = statusFromResult(result);
+      const failures = Number(data.fail_count || 0);
+      const warnings = Number(data.warn_count || 0);
+
+      setText(heroResult, result);
+      setText(heroExplanation, explanationFor(status));
+      setPill(heroPill, status, status);
+      setPill(transportPill, sourceLabel.status, sourceLabel.text);
+      setText(stateValue, status === "UNKNOWN" ? "Unknown" : status);
+      setText(stateMeta, result);
+      setText(failCount, failures.toString());
+      setText(warnCount, warnings.toString());
+      renderChecks(data.checks);
+      updateWarningBanner(warnings, failures);
+      setText(updated, `Last updated: ${new Date().toLocaleString()}`);
+    }
+
+    function renderUnavailable(message) {
+      setText(heroResult, "Status unavailable");
+      setText(heroExplanation, message || "Unable to load gateway readiness from the local status API.");
+      setPill(heroPill, "FAIL", "ERROR");
+      setPill(transportPill, "FAIL", "API error");
+      setText(stateValue, "Unavailable");
+      setText(stateMeta, "Local status request failed");
+      setText(failCount, "-");
+      setText(warnCount, "-");
+      setText(totalCount, "-");
+      warningBanner.hidden = true;
+      renderGroup("OK", []);
+      renderGroup("WARN", []);
+      renderGroup("FAIL", []);
+    }
+
+    function setMode(mode) {
+      activeMode = mode;
+      for (const button of modeButtons) {
+        button.classList.toggle("active", button.dataset.mode === mode);
+      }
+      demoLabel.hidden = mode === "live";
+      refreshStatus();
     }
 
     async function refreshStatus() {
       refreshButton.disabled = true;
-      clearError();
+
+      if (activeMode !== "live") {
+        const demoData = demoPayloads[activeMode];
+        renderStatus(demoData, {status: "UNKNOWN", text: "Demo data"});
+        refreshButton.disabled = false;
+        return;
+      }
+
+      setPill(transportPill, "UNKNOWN", "API pending");
 
       try {
         const response = await fetch("/api/status", {cache: "no-store"});
@@ -274,18 +838,17 @@
           throw new Error(data.error || `status request failed: ${response.status}`);
         }
 
-        setText(finalResult, data.final_result || "unknown");
-        setText(failCount, Number(data.fail_count || 0).toString());
-        setText(warnCount, Number(data.warn_count || 0).toString());
-        renderChecks(data.checks);
-        setText(updated, `Last updated: ${new Date().toLocaleString()}`);
+        renderStatus(data, {status: "OK", text: "API online"});
       } catch (error) {
-        showError(error.message || "Unable to load gateway status.");
+        renderUnavailable(error.message);
       } finally {
         refreshButton.disabled = false;
       }
     }
 
+    for (const button of modeButtons) {
+      button.addEventListener("click", () => setMode(button.dataset.mode));
+    }
     refreshButton.addEventListener("click", refreshStatus);
     refreshStatus();
   </script>
