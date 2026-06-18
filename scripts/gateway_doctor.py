@@ -35,12 +35,26 @@ CHECK_COUNTS = {
     "FAIL": 0,
     "WARN": 0,
 }
+CHECKS = []
+JSON_OUTPUT = False
+
+
+def reset_report():
+    CHECK_COUNTS["FAIL"] = 0
+    CHECK_COUNTS["WARN"] = 0
+    CHECKS.clear()
 
 
 def line(status, message):
+    if status in ("OK", "WARN", "FAIL"):
+        CHECKS.append({
+            "status": status,
+            "message": message,
+        })
     if status in CHECK_COUNTS:
         CHECK_COUNTS[status] += 1
-    print(f"[{status}] {message}")
+    if not JSON_OUTPUT:
+        print(f"[{status}] {message}")
 
 
 def ok(message):
@@ -55,13 +69,25 @@ def fail(message):
     line("FAIL", message)
 
 
-def print_result():
+def final_result():
     if CHECK_COUNTS["FAIL"]:
-        print("[RESULT] NOT READY as NetGuard-AI gateway")
-    elif CHECK_COUNTS["WARN"]:
-        print("[RESULT] READY with warnings as NetGuard-AI gateway")
-    else:
-        print("[RESULT] READY as NetGuard-AI gateway")
+        return "NOT READY as NetGuard-AI gateway"
+    if CHECK_COUNTS["WARN"]:
+        return "READY with warnings as NetGuard-AI gateway"
+    return "READY as NetGuard-AI gateway"
+
+
+def print_result():
+    print(f"[RESULT] {final_result()}")
+
+
+def print_json_result():
+    print(json.dumps({
+        "checks": CHECKS,
+        "fail_count": CHECK_COUNTS["FAIL"],
+        "warn_count": CHECK_COUNTS["WARN"],
+        "final_result": final_result(),
+    }, indent=2))
 
 
 def load_profile():
@@ -314,11 +340,16 @@ def check_services():
 
 
 def main():
+    global JSON_OUTPUT
+
+    reset_report()
     parser = argparse.ArgumentParser(
         description="NetGuard-AI Gateway v7.8 portable doctor readiness checker"
     )
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+    JSON_OUTPUT = args.json
 
     if args.apply:
         print("[FAIL] --apply is not implemented yet. No changes applied.")
@@ -337,14 +368,20 @@ def main():
         ok(f"default route: {route_line}")
     else:
         fail(f"default route: {route_status}")
-        print_result()
+        if JSON_OUTPUT:
+            print_json_result()
+        else:
+            print_result()
         return 1
 
     if wan:
         ok(f"WAN interface detected: {wan} ({source})")
     else:
         fail(f"WAN interface not detected: {source}")
-        print_result()
+        if JSON_OUTPUT:
+            print_json_result()
+        else:
+            print_result()
         return 1
 
     lan, lan_source = detect_lan(wan)
@@ -358,7 +395,10 @@ def main():
     check_nat_readiness(wan)
     check_zeek_interface(wan, lan)
     check_services()
-    print_result()
+    if JSON_OUTPUT:
+        print_json_result()
+    else:
+        print_result()
 
     return 0
 
