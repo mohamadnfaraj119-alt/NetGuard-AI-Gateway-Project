@@ -115,6 +115,46 @@ sudo python3 scripts/gateway_doctor.py
 `sudo` is only needed when the host requires root privileges to read NAT table
 status. `--apply` is intentionally blocked and applies no changes.
 
+## v7.9 Gateway Status API + Minimal Dashboard
+
+- `scripts/gateway_doctor.py --json` provides structured read-only gateway
+  readiness output for API/dashboard use.
+- `scripts/gateway_status_server.py` serves a local read-only status API and
+  dashboard using Python standard library only.
+- `dashboard/index.html` is the minimal browser dashboard.
+
+Run locally:
+
+```bash
+python3 scripts/gateway_status_server.py --host 127.0.0.1 --port 8787
+```
+
+Dashboard:
+
+```text
+http://127.0.0.1:8787/
+```
+
+API test:
+
+```bash
+curl http://127.0.0.1:8787/api/status
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8787/healthz
+```
+
+Safety notes:
+
+- Read-only status view.
+- No system changes.
+- No auto-fix behavior.
+- No POST, PUT, or DELETE actions.
+- `--apply` remains protected and not implemented.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
