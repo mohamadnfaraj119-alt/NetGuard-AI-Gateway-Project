@@ -12,6 +12,10 @@ import urllib.request
 
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8787"
+START_SERVER_COMMAND = (
+    "python3 scripts/gateway_status_server.py --host 127.0.0.1 --port 8787"
+)
+BASE_URL_HINT = "--base-url http://127.0.0.1:<port>"
 
 
 def build_url(base_url, path):
@@ -46,10 +50,18 @@ def fail(message):
     print(f"[FAIL] {message}")
 
 
+def request_failure(method, path, error):
+    return (
+        f"{method} {path} failed: the local status server may not be running "
+        f"or the base URL may be wrong. Start it with: {START_SERVER_COMMAND}. "
+        f"For a custom port, use: {BASE_URL_HINT}. Detail: {error}"
+    )
+
+
 def check_healthz(base_url):
     status, _content_type, body, error = request(base_url, "/healthz")
     if error:
-        fail(f"GET /healthz failed: {error}")
+        fail(request_failure("GET", "/healthz", error))
         return False
     if status != 200:
         fail(f"GET /healthz returned HTTP {status}, expected 200")
@@ -67,7 +79,7 @@ def check_healthz(base_url):
 def check_api_status(base_url):
     status, _content_type, body, error = request(base_url, "/api/status")
     if error:
-        fail(f"GET /api/status failed: {error}")
+        fail(request_failure("GET", "/api/status", error))
         return False
     if status != 200:
         fail(f"GET /api/status returned HTTP {status}, expected 200")
@@ -80,7 +92,10 @@ def check_api_status(base_url):
         return False
     missing = sorted(required - payload.keys())
     if missing:
-        fail(f"GET /api/status JSON missing keys: {', '.join(missing)}")
+        fail(
+            "GET /api/status API JSON contract may have changed; "
+            f"missing required keys: {', '.join(missing)}"
+        )
         return False
 
     ok("GET /api/status returned HTTP 200 with expected JSON keys")
@@ -90,7 +105,7 @@ def check_api_status(base_url):
 def check_dashboard(base_url):
     status, _content_type, body, error = request(base_url, "/")
     if error:
-        fail(f"GET / failed: {error}")
+        fail(request_failure("GET", "/", error))
         return False
     if status != 200:
         fail(f"GET / returned HTTP {status}, expected 200")
@@ -98,7 +113,10 @@ def check_dashboard(base_url):
 
     text = body.decode("utf-8", errors="replace")
     if "<html" not in text.lower() or "NetGuard-AI Gateway Control" not in text:
-        fail("GET / did not contain expected dashboard HTML text")
+        fail(
+            "GET / dashboard endpoint responded, but expected dashboard text "
+            "was not found"
+        )
         return False
 
     ok("GET / returned HTTP 200 with dashboard HTML")
@@ -108,10 +126,13 @@ def check_dashboard(base_url):
 def check_post_rejected(base_url):
     status, _content_type, _body, error = request(base_url, "/api/status", method="POST")
     if error:
-        fail(f"POST /api/status failed: {error}")
+        fail(request_failure("POST", "/api/status", error))
         return False
     if status != 405:
-        fail(f"POST /api/status returned HTTP {status}, expected 405")
+        fail(
+            f"POST /api/status returned HTTP {status}, expected 405; "
+            "write methods should remain rejected"
+        )
         return False
 
     ok("POST /api/status returned HTTP 405 Method Not Allowed")
