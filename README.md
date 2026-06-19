@@ -355,6 +355,45 @@ Safety notes:
 - No Grafana.
 - No systemd.
 
+## v8.9 Demo / Presentation Notes
+
+Recommended demo flow:
+
+1. Start the dashboard:
+
+```bash
+bash scripts/run_gateway_dashboard.sh
+```
+
+2. Open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+3. Show Live status first.
+
+4. Show demo modes: Demo OK, Demo WARN, and Demo FAIL.
+
+5. Run the smoke test:
+
+```bash
+python3 scripts/gateway_status_smoke_test.py
+```
+
+6. Explain the safety model:
+
+- Read-only dashboard.
+- Localhost only.
+- No sudo.
+- No `--apply`.
+- No firewall, iptables, or service changes.
+- No data or model changes.
+- No systemd.
+
+7. Explain that Grafana is a future monitoring and analytics layer, not part of
+   the current local gateway readiness dashboard.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
