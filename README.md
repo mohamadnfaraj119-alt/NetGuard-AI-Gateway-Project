@@ -277,6 +277,40 @@ Screenshot notes:
 - Capture Live, Demo OK, Demo WARN, and Demo FAIL states if release screenshots
   are needed.
 
+## v8.7 Local Dashboard Run Helper
+
+`scripts/run_gateway_dashboard.sh` starts the local read-only dashboard helper.
+It binds only to `127.0.0.1` and starts `scripts/gateway_status_server.py`.
+
+Default usage:
+
+```bash
+bash scripts/run_gateway_dashboard.sh
+```
+
+Custom port:
+
+```bash
+bash scripts/run_gateway_dashboard.sh 8788
+```
+
+Dashboard URL:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Safety:
+
+- No sudo.
+- No `--apply`.
+- No firewall changes.
+- No iptables changes.
+- No service changes.
+- No data or model changes.
+- No Grafana.
+- No systemd.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
