@@ -311,6 +311,50 @@ Safety:
 - No Grafana.
 - No systemd.
 
+## v8.8 Operator Quick Start
+
+Start the local dashboard:
+
+```bash
+bash scripts/run_gateway_dashboard.sh
+```
+
+Open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8787/healthz
+```
+
+Smoke test:
+
+```bash
+python3 scripts/gateway_status_smoke_test.py
+```
+
+Stop the server:
+
+```text
+Ctrl + C
+```
+
+Safety notes:
+
+- Localhost only.
+- Read-only.
+- No sudo.
+- No `--apply`.
+- No firewall or iptables changes.
+- No service changes.
+- No data or model changes.
+- No Grafana.
+- No systemd.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
