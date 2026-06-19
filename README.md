@@ -394,6 +394,46 @@ python3 scripts/gateway_status_smoke_test.py
 7. Explain that Grafana is a future monitoring and analytics layer, not part of
    the current local gateway readiness dashboard.
 
+## v9.2 Post-Training Day Audit
+
+`scripts/post_training_day_audit.py` audits days collected after the current
+model training date before considering retraining.
+
+Run:
+
+```bash
+python3 scripts/post_training_day_audit.py
+```
+
+It reads existing risk reports, existing windows files, and baseline training
+metadata. It outputs coverage hours, row counts, max risk score, suspicious
+indicator counts, and a suggested preliminary label.
+
+Labels:
+
+- `CANDIDATE_CLEAN`: appears usable for future review, but is not automatically
+  approved.
+- `PARTIAL_CANDIDATE_CLEAN`: partial day; needs more coverage and review.
+- `SUSPICIOUS_VALIDATION`: useful for validation and testing, not clean
+  baseline retraining.
+- `INCOMPLETE`: missing or insufficient data.
+
+Important: suggested labels are preliminary and do not automatically approve
+retraining.
+
+Safety:
+
+- Read-only.
+- No data changes.
+- No model changes.
+- No retraining.
+- No sudo.
+- No `--apply`.
+- No firewall or iptables changes.
+- No service changes.
+- No Grafana.
+- No systemd.
+
 ## Philosophy
 
 - Risk Score — not binary decision  
