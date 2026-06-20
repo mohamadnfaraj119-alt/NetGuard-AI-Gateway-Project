@@ -7,6 +7,7 @@
 - Dashboard server can start.
 - Smoke test passes.
 - Post-training audit runs.
+- Attack classification summary runs.
 
 ## Demo Flow
 
@@ -59,6 +60,18 @@ Run a summary-only audit for quick review:
 python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only
 ```
 
+Run attack classification summary:
+
+```bash
+python3 scripts/attack_classifier.py --summary-only
+```
+
+Optional date-specific classification:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5
+```
+
 Export audit evidence for the report:
 
 ```bash
@@ -78,6 +91,7 @@ not commit generated export files.
 - Risk Engine combines indicators into a 0-100 Risk Score.
 - Gateway Dashboard shows readiness safely.
 - Post-training audit shows label summary and conservative retraining recommendation.
+- Attack classification gives preliminary explainable labels with confidence and reasons.
 - Audit evidence export is explicit and limited to safe output paths.
 
 ## Safety Points
@@ -101,9 +115,10 @@ not commit generated export files.
 - Final project check passed.
 - Smoke test passed.
 - Post-training audit output.
+- Attack classification summary.
 - Audit evidence export output.
 
 ## Closing Message
 
-The demo should show that v9.7 is a stable local gateway readiness, audit, and evidence
-workflow suitable for presentation and review.
+The demo should show that v9.8 is a stable local gateway readiness, audit,
+classification, and evidence workflow suitable for presentation and review.

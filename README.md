@@ -479,6 +479,57 @@ Safety:
 - No Grafana.
 - No systemd.
 
+## v9.8 Attack Classification Layer
+
+`scripts/attack_classifier.py` reads existing risk reports and adds an
+explainable, rule-based classification layer for analyst review. It labels
+suspicious windows with preliminary attack types, confidence scores, and
+reasons. These labels are not guaranteed ground truth and must not approve
+baseline retraining automatically.
+
+Default classification for all post-training days:
+
+```bash
+python3 scripts/attack_classifier.py
+```
+
+Summary only:
+
+```bash
+python3 scripts/attack_classifier.py --summary-only
+```
+
+Classify one date:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5
+```
+
+Classify an inclusive range:
+
+```bash
+python3 scripts/attack_classifier.py --from 2026-06-18 --to 2026-06-20
+```
+
+Export evidence:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --export-md /tmp/classification.md --export-json /tmp/classification.json
+```
+
+`--top` accepts 1 to 50 and controls detailed classified events. Export paths
+are accepted only under `/tmp/` or `reports/audit_exports/`.
+
+Classification labels:
+
+- `PORT_SCAN`
+- `SSH_BRUTE_FORCE_OR_LOGIN_PATTERN`
+- `DNS_ANOMALY`
+- `DOS_LIKE_BURST`
+- `BOT_LIKE_BEHAVIOR`
+- `UNKNOWN_SUSPICIOUS`
+- `LOW_SIGNAL_REVIEW`
+
 ## Final Demo Verification
 
 Run the final project check before demo or submission:
@@ -489,8 +540,9 @@ bash scripts/final_project_check.sh
 
 The check is safe and read-only for project state. It reports Git status,
 compiles core Python scripts, validates shell syntax, runs the post-training
-audit in summary mode, and runs the smoke test only when the local status server
-is already reachable. Start the dashboard manually when needed:
+audit and attack classifier in summary mode, and runs the smoke test only when
+the local status server is already reachable. Start the dashboard manually when
+needed:
 
 ```bash
 bash scripts/run_gateway_dashboard.sh
