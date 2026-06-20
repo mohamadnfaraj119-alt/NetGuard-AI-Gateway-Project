@@ -17,6 +17,7 @@ layer includes:
 - Demo and presentation notes.
 - Final evidence export for post-training audit review.
 - Safe final project verification script.
+- Explainable attack classification layer over risk reports.
 
 ## What Is Ready
 
@@ -87,6 +88,7 @@ Ctrl + C
 - Capture demo screenshots.
 - Prepare the final presentation explanation.
 - Use v9.7 audit evidence export for final report artifacts.
+- Use v9.8 attack classification output for analyst explanation examples.
 - Later consider Grafana for monitoring and analytics.
 - Later consider production deployment hardening.
 
@@ -97,7 +99,15 @@ safe `scripts/final_project_check.sh` verification script for demo/submission
 readiness. Exports are explicit, limited to safe output paths, and generated
 evidence should not be committed.
 
+## v9.8 Attack Classification Layer
+
+v9.8 adds a safe, rule-based `scripts/attack_classifier.py` layer on top of
+existing risk reports. It classifies suspicious windows into preliminary attack
+or behavior types with confidence scores and reasons for analyst review. These
+classifications are explainable aids, not guaranteed ground truth.
+
 ## Final Statement
 
-The v9.7 milestone represents a stable local gateway readiness, audit, and
-evidence workflow suitable for demonstration, review, and controlled operation.
+The v9.8 milestone represents a stable local gateway readiness, audit,
+classification, and evidence workflow suitable for demonstration, review, and
+controlled operation.

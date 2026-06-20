@@ -22,13 +22,20 @@ run_check "PYTHON COMPILE" python3 -m py_compile \
   scripts/gateway_doctor.py \
   scripts/gateway_status_server.py \
   scripts/gateway_status_smoke_test.py \
-  scripts/post_training_day_audit.py
+  scripts/post_training_day_audit.py \
+  scripts/attack_classifier.py
 
 run_check "DASHBOARD SHELL SYNTAX" bash -n scripts/run_gateway_dashboard.sh
 run_check "FINAL CHECK SHELL SYNTAX" bash -n scripts/final_project_check.sh
 
 run_check "POST-TRAINING AUDIT SUMMARY" \
   python3 scripts/post_training_day_audit.py --summary-only
+
+run_check "ATTACK CLASSIFICATION SUMMARY" \
+  python3 scripts/attack_classifier.py --summary-only
+
+run_check "ATTACK CLASSIFICATION DATE SUMMARY" \
+  python3 scripts/attack_classifier.py --date 2026-06-20 --top 3 --summary-only
 
 echo "=== STATUS SERVER CHECK ==="
 if python3 - <<'PY'
