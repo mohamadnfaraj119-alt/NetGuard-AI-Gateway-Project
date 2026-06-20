@@ -394,20 +394,47 @@ python3 scripts/gateway_status_smoke_test.py
 7. Explain that Grafana is a future monitoring and analytics layer, not part of
    the current local gateway readiness dashboard.
 
-## v9.2 Post-Training Day Audit
+## v9.6 Post-Training Day Audit
 
 `scripts/post_training_day_audit.py` audits days collected after the current
-model training date before considering retraining.
+model training date before considering retraining. It is read-only and uses
+existing risk reports, windows files, and baseline training metadata.
 
-Run:
+Default audit for all post-training days:
 
 ```bash
 python3 scripts/post_training_day_audit.py
 ```
 
-It reads existing risk reports, existing windows files, and baseline training
-metadata. It outputs coverage hours, row counts, max risk score, suspicious
-indicator counts, and a suggested preliminary label.
+Audit one date:
+
+```bash
+python3 scripts/post_training_day_audit.py --date 2026-06-20
+```
+
+Audit an inclusive date range:
+
+```bash
+python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20
+```
+
+Limit detailed rows in `top_suspicious_windows` and `suspicious_ip_summary`:
+
+```bash
+python3 scripts/post_training_day_audit.py --date 2026-06-20 --top 3
+```
+
+Show only the per-day summary, review notes, final label summary, and retraining
+recommendation:
+
+```bash
+python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only
+```
+
+The audit outputs coverage hours, row counts, max risk score, suspicious
+indicator counts, preliminary labels, top suspicious windows, suspicious IP
+summaries, a final `Label Summary`, and a conservative `Retraining
+Recommendation`.
 
 Labels:
 
@@ -419,11 +446,13 @@ Labels:
 - `INCOMPLETE`: missing or insufficient data.
 
 Important: suggested labels are preliminary and do not automatically approve
-retraining.
+retraining. The retraining recommendation is conservative and still requires
+manual review.
 
 Safety:
 
 - Read-only.
+- Python standard library only.
 - No data changes.
 - No model changes.
 - No retraining.

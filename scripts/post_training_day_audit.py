@@ -37,6 +37,12 @@ TOP_WINDOW_VALUE_FIELDS = (
     "dns_rate_30s",
 )
 TOP_WINDOW_SORT_FIELDS = ("risk_score", "anomaly_score", "connections_30s")
+KNOWN_LABELS = (
+    "CANDIDATE_CLEAN",
+    "PARTIAL_CANDIDATE_CLEAN",
+    "SUSPICIOUS_VALIDATION",
+    "INCOMPLETE",
+)
 SUSPICIOUS_IP_THRESHOLDS = (
     ("risk_score", 20.0),
     ("anomaly_score", 0.35),
@@ -62,7 +68,45 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         help="Optional dates to audit, formatted as YYYY-MM-DD.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--date",
+        dest="audit_date",
+        type=parse_date_arg,
+        help="Audit one specific date, formatted as YYYY-MM-DD.",
+    )
+    parser.add_argument(
+        "--from",
+        dest="from_date",
+        type=parse_date_arg,
+        help="Start date for an inclusive audit range, formatted as YYYY-MM-DD.",
+    )
+    parser.add_argument(
+        "--to",
+        dest="to_date",
+        type=parse_date_arg,
+        help="End date for an inclusive audit range, formatted as YYYY-MM-DD.",
+    )
+    parser.add_argument(
+        "--top",
+        type=top_count_arg,
+        default=5,
+        help="Rows to show in detailed sections, from 1 to 20. Default: 5.",
+    )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="Suppress detailed suspicious window and IP sections.",
+    )
+    args = parser.parse_args()
+
+    if args.audit_date and (args.from_date or args.to_date):
+        parser.error("--date cannot be combined with --from or --to")
+    if bool(args.from_date) != bool(args.to_date):
+        parser.error("--from and --to must be used together")
+    if args.dates and (args.audit_date or args.from_date or args.to_date):
+        parser.error("positional dates cannot be combined with date options")
+
+    return args
 
 
 def load_training_datetime() -> datetime:
@@ -101,6 +145,54 @@ def parse_date_arg(value: str) -> str:
             f"invalid date '{value}', expected YYYY-MM-DD"
         ) from exc
     return value
+
+
+def top_count_arg(value: str) -> int:
+    try:
+        count = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("--top must be an integer from 1 to 20") from exc
+
+    if count < 1 or count > 20:
+        raise argparse.ArgumentTypeError("--top must be an integer from 1 to 20")
+    return count
+
+
+def date_range(start: str, end: str) -> list[str]:
+    start_date = datetime.strptime(start, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end, "%Y-%m-%d").date()
+    if start_date > end_date:
+        raise ValueError("--from date must be on or before --to date")
+
+    days = []
+    current = start_date
+    while current <= end_date:
+        days.append(current.isoformat())
+        current = current.fromordinal(current.toordinal() + 1)
+    return days
+
+
+def existing_report_dates() -> set[str]:
+    dates = set()
+    for path in REPORTS_DIR.glob("risk_*.csv"):
+        match = RISK_FILE_RE.match(path.name)
+        if match:
+            dates.add(match.group(1))
+    return dates
+
+
+def selected_dates(args: argparse.Namespace, training_dt: datetime) -> list[str]:
+    if args.audit_date:
+        dates = [args.audit_date]
+    elif args.from_date and args.to_date:
+        dates = date_range(args.from_date, args.to_date)
+    elif args.dates:
+        dates = [parse_date_arg(value) for value in args.dates]
+    else:
+        return default_dates(training_dt)
+
+    available_dates = existing_report_dates()
+    return [day for day in dates if day in available_dates]
 
 
 def default_dates(training_dt: datetime) -> list[str]:
@@ -287,15 +379,15 @@ def suspicious_ip_sort_key(group: dict[str, object]) -> tuple[float, int, float]
 
 
 def build_suspicious_ip_summary(
-    groups: dict[str, dict[str, object]]
+    groups: dict[str, dict[str, object]], top_count: int
 ) -> list[dict[str, object]]:
     sorted_groups = sorted(
         groups.values(), key=suspicious_ip_sort_key, reverse=True
-    )[:5]
+    )[:top_count]
     return [compact_suspicious_ip_group(group) for group in sorted_groups]
 
 
-def audit_day(day: str) -> dict[str, object]:
+def audit_day(day: str, top_count: int) -> dict[str, object]:
     risk_file = REPORTS_DIR / f"risk_{day}.csv"
     windows_file = WINDOWS_DIR / f"windows_{day}.csv"
 
@@ -371,10 +463,10 @@ def audit_day(day: str) -> dict[str, object]:
         row
         for _, row in sorted(
             top_window_candidates, key=lambda candidate: candidate[0], reverse=True
-        )[:5]
+        )[:top_count]
     ]
     summary["suspicious_ip_summary"] = build_suspicious_ip_summary(
-        suspicious_ip_groups
+        suspicious_ip_groups, top_count
     )
 
     if datetimes:
@@ -473,7 +565,7 @@ def format_datetime(value: object) -> str:
     return "n/a"
 
 
-def print_summary(summary: dict[str, object]) -> None:
+def print_summary(summary: dict[str, object], summary_only: bool) -> None:
     print(f"Date: {summary['date']}")
     print(f"  risk_rows: {summary['risk_rows']}")
     print(f"  windows_rows: {summary['windows_rows']}")
@@ -493,31 +585,70 @@ def print_summary(summary: dict[str, object]) -> None:
     print("  review_notes:")
     for note in summary["review_notes"]:
         print(f"    - {note}")
-    print("  top_suspicious_windows:")
-    top_windows = summary.get("top_suspicious_windows", [])
-    if top_windows:
-        for row in top_windows:
-            fields = " ".join(f"{key}={value}" for key, value in row.items())
-            print(f"    - {fields}")
-    else:
-        print("    - none")
-    print("  suspicious_ip_summary:")
-    suspicious_ips = summary.get("suspicious_ip_summary", [])
-    if suspicious_ips:
-        for row in suspicious_ips:
-            fields = " ".join(f"{key}={value}" for key, value in row.items())
-            print(f"    - {fields}")
-    else:
-        print("    - none")
+    if not summary_only:
+        print("  top_suspicious_windows:")
+        top_windows = summary.get("top_suspicious_windows", [])
+        if top_windows:
+            for row in top_windows:
+                fields = " ".join(f"{key}={value}" for key, value in row.items())
+                print(f"    - {fields}")
+        else:
+            print("    - none")
+        print("  suspicious_ip_summary:")
+        suspicious_ips = summary.get("suspicious_ip_summary", [])
+        if suspicious_ips:
+            for row in suspicious_ips:
+                fields = " ".join(f"{key}={value}" for key, value in row.items())
+                print(f"    - {fields}")
+        else:
+            print("    - none")
     print()
+
+
+def label_counts(summaries: list[dict[str, object]]) -> dict[str, int]:
+    counts = {label: 0 for label in KNOWN_LABELS}
+    for summary in summaries:
+        label = str(summary["suggested_label"])
+        if label in counts:
+            counts[label] += 1
+    return counts
+
+
+def retraining_recommendation(counts: dict[str, int]) -> str:
+    if counts["SUSPICIOUS_VALIDATION"] > 0:
+        return "Do not retrain. Suspicious validation days are present."
+    if counts["INCOMPLETE"] > 0:
+        return "Do not retrain yet. Incomplete data is present."
+    if counts["CANDIDATE_CLEAN"] < 3:
+        return "Do not retrain yet. More clean candidate days are recommended."
+    return (
+        "Manual review required before retraining. Candidate clean days are "
+        "available, but labels do not automatically approve retraining."
+    )
+
+
+def print_label_summary(summaries: list[dict[str, object]]) -> None:
+    counts = label_counts(summaries)
+    print("Label Summary:")
+    for label in KNOWN_LABELS:
+        print(f"  {label}: {counts[label]}")
+    print("Retraining Recommendation:")
+    print(f"  {retraining_recommendation(counts)}")
 
 
 def main() -> int:
     args = parse_args()
-    requested_dates = [parse_date_arg(value) for value in args.dates]
     training_dt = load_training_datetime()
 
-    dates = requested_dates or default_dates(training_dt)
+    try:
+        dates = selected_dates(args, training_dt)
+    except ValueError as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 1
+
+    if not dates:
+        print("[ERROR] No risk reports found for selected dates.", file=sys.stderr)
+        return 1
 
     print("Post-Training Day Audit")
     print(f"trained_at: {training_dt.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -528,9 +659,14 @@ def main() -> int:
     )
     print()
 
+    summaries = []
     for day in dates:
-        print_summary(audit_day(day))
+        summary = audit_day(day, args.top)
+        summaries.append(summary)
+        print_summary(summary, args.summary_only)
 
+    print_label_summary(summaries)
+    print()
     print("[RESULT] POST-TRAINING DAY AUDIT COMPLETE")
     return 0
 
