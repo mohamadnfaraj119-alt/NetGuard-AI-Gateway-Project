@@ -15,6 +15,8 @@ layer includes:
 - Local run helper.
 - Operator quick start.
 - Demo and presentation notes.
+- Final evidence export for post-training audit review.
+- Safe final project verification script.
 
 ## What Is Ready
 
@@ -84,11 +86,18 @@ Ctrl + C
 
 - Capture demo screenshots.
 - Prepare the final presentation explanation.
-- Later restore or refine post-training day audit.
+- Use v9.7 audit evidence export for final report artifacts.
 - Later consider Grafana for monitoring and analytics.
 - Later consider production deployment hardening.
 
+## v9.7 Final Evidence and Verification
+
+v9.7 adds optional Markdown and JSON export to the post-training audit and a
+safe `scripts/final_project_check.sh` verification script for demo/submission
+readiness. Exports are explicit, limited to safe output paths, and generated
+evidence should not be committed.
+
 ## Final Statement
 
-The v9.0 milestone represents a stable local gateway readiness layer suitable
-for demonstration, review, and controlled operation.
+The v9.7 milestone represents a stable local gateway readiness, audit, and
+evidence workflow suitable for demonstration, review, and controlled operation.

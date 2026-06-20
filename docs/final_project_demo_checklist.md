@@ -3,11 +3,18 @@
 ## Pre-Demo Checks
 
 - `git status` is clean.
+- Final project check passes.
 - Dashboard server can start.
 - Smoke test passes.
 - Post-training audit runs.
 
 ## Demo Flow
+
+Run final project check:
+
+```bash
+bash scripts/final_project_check.sh
+```
 
 Start dashboard:
 
@@ -52,6 +59,15 @@ Run a summary-only audit for quick review:
 python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only
 ```
 
+Export audit evidence for the report:
+
+```bash
+python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only --export-md reports/audit_exports/post_training_audit_summary.md --export-json reports/audit_exports/post_training_audit_summary.json
+```
+
+The exported Markdown and JSON files can be used as final report evidence. Do
+not commit generated export files.
+
 ## What to Explain During the Demo
 
 - NetGuard-AI is not just a CSV model; it is a real pipeline.
@@ -62,6 +78,7 @@ python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --s
 - Risk Engine combines indicators into a 0-100 Risk Score.
 - Gateway Dashboard shows readiness safely.
 - Post-training audit shows label summary and conservative retraining recommendation.
+- Audit evidence export is explicit and limited to safe output paths.
 
 ## Safety Points
 
@@ -81,10 +98,12 @@ python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --s
 - Demo OK.
 - Demo WARN.
 - Demo FAIL.
+- Final project check passed.
 - Smoke test passed.
 - Post-training audit output.
+- Audit evidence export output.
 
 ## Closing Message
 
-The demo should show that v9.6 is a stable local gateway readiness and audit
+The demo should show that v9.7 is a stable local gateway readiness, audit, and evidence
 workflow suitable for presentation and review.
