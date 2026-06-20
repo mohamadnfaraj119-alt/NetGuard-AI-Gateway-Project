@@ -28,6 +28,15 @@ DATETIME_FORMATS = (
     "%Y-%m-%d %H:%M:%S.%f",
     "%Y-%m-%dT%H:%M:%S.%f",
 )
+TOP_WINDOW_VALUE_FIELDS = (
+    "src_ip",
+    "risk_score",
+    "anomaly_score",
+    "connections_30s",
+    "failed_conn_rate_30s",
+    "dns_rate_30s",
+)
+TOP_WINDOW_SORT_FIELDS = ("risk_score", "anomaly_score", "connections_30s")
 
 
 def parse_args() -> argparse.Namespace:
@@ -134,6 +143,57 @@ def ge_count(row: dict[str, str], column: str, threshold: float) -> int:
     return int(value is not None and value >= threshold)
 
 
+def top_window_sort_key(row: dict[str, str]) -> tuple[float, float, float] | None:
+    values = []
+    has_sort_value = False
+
+    for field in TOP_WINDOW_SORT_FIELDS:
+        value = parse_float(row.get(field, ""))
+        if value is None:
+            values.append(float("-inf"))
+            continue
+
+        values.append(value)
+        has_sort_value = True
+
+    if not has_sort_value:
+        return None
+
+    return tuple(values)
+
+
+def top_window_time(row: dict[str, str]) -> str | None:
+    for field in ("timestamp", "window_start"):
+        value = row.get(field, "").strip()
+        if value:
+            return value
+
+    ts = row.get("ts", "").strip()
+    ts_value = parse_float(ts)
+    if ts_value is not None:
+        try:
+            return datetime.fromtimestamp(ts_value).strftime("%Y-%m-%d %H:%M:%S")
+        except (OverflowError, OSError, ValueError):
+            pass
+
+    return ts or None
+
+
+def compact_top_window(row: dict[str, str]) -> dict[str, str]:
+    compact = {}
+
+    time_value = top_window_time(row)
+    if time_value:
+        compact["time"] = time_value
+
+    for field in TOP_WINDOW_VALUE_FIELDS:
+        value = row.get(field, "").strip()
+        if value:
+            compact[field] = value
+
+    return compact
+
+
 def audit_day(day: str) -> dict[str, object]:
     risk_file = REPORTS_DIR / f"risk_{day}.csv"
     windows_file = WINDOWS_DIR / f"windows_{day}.csv"
@@ -156,6 +216,7 @@ def audit_day(day: str) -> dict[str, object]:
         "dns_rate_ge_10": 0,
         "suggested_label": "INCOMPLETE",
         "review_notes": [],
+        "top_suspicious_windows": [],
     }
 
     if not risk_file.exists():
@@ -164,6 +225,7 @@ def audit_day(day: str) -> dict[str, object]:
 
     src_ips = set()
     datetimes = []
+    top_window_candidates = []
 
     with risk_file.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
@@ -194,7 +256,18 @@ def audit_day(day: str) -> dict[str, object]:
             summary["connections_ge_80"] += ge_count(row, "connections_30s", 80)
             summary["dns_rate_ge_10"] += ge_count(row, "dns_rate_30s", 1.0)
 
+            sort_key = top_window_sort_key(row)
+            compact = compact_top_window(row)
+            if sort_key is not None and compact:
+                top_window_candidates.append((sort_key, compact))
+
     summary["unique_src_ip"] = len(src_ips)
+    summary["top_suspicious_windows"] = [
+        row
+        for _, row in sorted(
+            top_window_candidates, key=lambda candidate: candidate[0], reverse=True
+        )[:5]
+    ]
 
     if datetimes:
         start = min(datetimes)
@@ -312,6 +385,14 @@ def print_summary(summary: dict[str, object]) -> None:
     print("  review_notes:")
     for note in summary["review_notes"]:
         print(f"    - {note}")
+    print("  top_suspicious_windows:")
+    top_windows = summary.get("top_suspicious_windows", [])
+    if top_windows:
+        for row in top_windows:
+            fields = " ".join(f"{key}={value}" for key, value in row.items())
+            print(f"    - {fields}")
+    else:
+        print("    - none")
     print()
 
 
