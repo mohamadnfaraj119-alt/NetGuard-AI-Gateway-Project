@@ -33,11 +33,37 @@ Each classified event includes:
 
 - `PORT_SCAN`
 - `SSH_BRUTE_FORCE_OR_LOGIN_PATTERN`
+- `FAILED_CONNECTION_PATTERN`
 - `DNS_ANOMALY`
 - `DOS_LIKE_BURST`
 - `BOT_LIKE_BEHAVIOR`
 - `UNKNOWN_SUSPICIOUS`
 - `LOW_SIGNAL_REVIEW`
+
+## v9.9 Calibration Notes
+
+SSH brute-force/login classification now requires explicit SSH evidence such as
+destination port 22 or `service=ssh`, plus strong suspicious behavior. Failed
+connections without clear SSH evidence are classified as
+`FAILED_CONNECTION_PATTERN` to avoid overclaiming SSH brute force.
+
+This matters because the project may be managed over SSH, VS Code Remote SSH,
+SCP, RSYNC, reconnects, or keepalives. Trusted/admin IP handling is optional and
+explicit:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --trusted-admin-ip 192.168.1.104
+```
+
+or:
+
+```bash
+NETGUARD_TRUSTED_ADMIN_IPS="192.168.1.104,192.168.1.180" python3 scripts/attack_classifier.py --summary-only
+```
+
+Trusted IPs reduce overclaiming for management traffic but do not hide events or
+override strong scan, DNS, or burst evidence. The output includes trusted IPs,
+high-confidence summaries, and likely actionable event counts for review.
 
 ## Confidence And Reasons
 

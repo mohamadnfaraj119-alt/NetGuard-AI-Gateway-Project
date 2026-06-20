@@ -37,6 +37,12 @@ Run the attack classification summary:
 python3 scripts/attack_classifier.py --summary-only
 ```
 
+Run classification with known management source awareness when appropriate:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --trusted-admin-ip 192.168.1.104
+```
+
 Export report evidence when needed:
 
 ```bash
@@ -52,7 +58,8 @@ python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --export-md repor
 Do not retrain if suspicious validation days are present. Suggested labels and
 recommendations are preliminary and never automatically approve retraining.
 Attack classification labels are also preliminary and intended for analyst
-review, not automatic retraining approval.
+review, not automatic retraining approval. Trusted/admin IPs should only be used
+for known management machines and must not be used to hide real attacks.
 
 ## Final Verification
 

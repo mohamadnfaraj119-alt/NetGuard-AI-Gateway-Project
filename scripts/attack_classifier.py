@@ -10,7 +10,9 @@ occurs when --export-md or --export-json is explicitly provided.
 
 import argparse
 import csv
+import ipaddress
 import json
+import os
 import re
 import sys
 from collections import Counter
@@ -33,6 +35,7 @@ DATETIME_FORMATS = (
 ATTACK_TYPES = (
     "PORT_SCAN",
     "SSH_BRUTE_FORCE_OR_LOGIN_PATTERN",
+    "FAILED_CONNECTION_PATTERN",
     "DNS_ANOMALY",
     "DOS_LIKE_BURST",
     "BOT_LIKE_BEHAVIOR",
@@ -46,6 +49,10 @@ CLASSIFICATION_NOTE = (
 RETRAINING_NOTE = (
     "Classification output must not be used to approve baseline retraining "
     "automatically."
+)
+CALIBRATION_NOTE = (
+    "SSH brute force classification requires explicit SSH evidence such as "
+    "port 22 or service=ssh."
 )
 SAFETY_NOTE = (
     "Read-only by default. Evidence export only occurs when explicitly "
@@ -93,6 +100,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--export-json",
         help="Export classification evidence to JSON under /tmp/ or reports/audit_exports/.",
+    )
+    parser.add_argument(
+        "--trusted-admin-ip",
+        action="append",
+        default=[],
+        help="Trusted/admin management source IPv4 address. Can be repeated.",
     )
     args = parser.parse_args()
 
@@ -230,6 +243,22 @@ def validate_export_paths(args: argparse.Namespace) -> dict[str, Path]:
     return paths
 
 
+def validate_ipv4(value: str) -> str:
+    try:
+        return str(ipaddress.IPv4Address(value.strip()))
+    except ipaddress.AddressValueError as exc:
+        raise ValueError(f"invalid trusted admin IP '{value}', expected IPv4 address") from exc
+
+
+def trusted_admin_ips(args: argparse.Namespace) -> set[str]:
+    values = []
+    env_value = os.environ.get("NETGUARD_TRUSTED_ADMIN_IPS", "")
+    if env_value.strip():
+        values.extend(part.strip() for part in env_value.split(",") if part.strip())
+    values.extend(args.trusted_admin_ip or [])
+    return {validate_ipv4(value) for value in values}
+
+
 def row_value(row: dict[str, str], *names: str) -> str:
     for name in names:
         value = row.get(name)
@@ -294,7 +323,9 @@ def confidence(base: float, reasons: list[str], cap: float = 0.95) -> float:
 
 
 def classify_row(
-    row: dict[str, str], suspicious_rows_by_src: Counter[str]
+    row: dict[str, str],
+    suspicious_rows_by_src: Counter[str],
+    trusted_ips: set[str],
 ) -> dict[str, object]:
     risk = row_float(row, "risk_score") or 0.0
     anomaly = row_float(row, "anomaly_score") or 0.0
@@ -310,20 +341,21 @@ def classify_row(
     proto = row_value(row, "proto", "protocol")
     src_ip = row_value(row, "src_ip")
     repeated = suspicious_rows_by_src[src_ip] if src_ip else 0
+    is_trusted_admin = src_ip in trusted_ips
 
     candidates: list[tuple[str, float, list[str]]] = []
 
     reasons = []
     if bool_flag(row, "flag_burst"):
         reasons.append("flag_burst is set")
-    if connections >= 120:
-        reasons.append(f"connections_30s={connections:.0f} >= 120")
-    if burst >= 0.8:
-        reasons.append(f"burst_score={burst:.2f} >= 0.8")
-    if bytes_rate >= 100000:
-        reasons.append(f"bytes_per_sec={bytes_rate:.0f} is high")
+    if connections >= 120 and risk >= 20:
+        reasons.append(f"connections_30s={connections:.0f} >= 120 with elevated risk")
+    if burst >= 0.8 and (risk >= 20 or anomaly >= 0.35):
+        reasons.append(f"burst_score={burst:.2f} >= 0.8 with risk/anomaly support")
+    if bytes_rate >= 100000 and (risk >= 20 or anomaly >= 0.35):
+        reasons.append(f"bytes_per_sec={bytes_rate:.0f} is high with risk/anomaly support")
     if reasons:
-        candidates.append(("DOS_LIKE_BURST", confidence(0.62, reasons), reasons))
+        candidates.append(("DOS_LIKE_BURST", confidence(0.58, reasons, 0.86), reasons))
 
     reasons = []
     if bool_flag(row, "flag_port_scan"):
@@ -338,28 +370,56 @@ def classify_row(
         )
     if risk >= 30 and connections >= 50:
         reasons.append(f"risk_score={risk:.2f} with elevated connections")
-    if reasons:
-        candidates.append(("PORT_SCAN", confidence(0.58, reasons), reasons))
+    scan_evidence = (unique_ports >= 10 or unique_ips >= 10) and (connections >= 50 or failed >= 0.3 or risk >= 20)
+    if bool_flag(row, "flag_port_scan") or scan_evidence:
+        candidates.append(("PORT_SCAN", confidence(0.58, reasons, 0.9), reasons))
 
+    service_context = " ".join([service, proto, row_value(row, "protocol")]).lower()
+    has_ssh_context = dst_port == "22" or "ssh" in service_context
+    strong_login_pattern = (
+        has_ssh_context
+        and failed >= 0.8
+        and connections >= 20
+        and (risk >= 20 or anomaly >= 0.35)
+    )
     reasons = []
-    has_ssh_context = dst_port == "22" or "ssh" in service
+    if has_ssh_context:
+        reasons.append("explicit SSH evidence is present")
     if bool_flag(row, "flag_brute_force"):
         reasons.append("flag_brute_force is set")
-    if has_ssh_context:
-        reasons.append("SSH port/service context is present")
+    if failed >= 0.8:
+        reasons.append(f"failed_conn_rate_30s={failed:.2f} >= 0.8")
+    if connections >= 20:
+        reasons.append(f"connections_30s={connections:.0f} >= 20")
+    if risk >= 20:
+        reasons.append(f"risk_score={risk:.2f} >= 20")
+    if anomaly >= 0.35:
+        reasons.append(f"anomaly_score={anomaly:.4f} >= 0.35")
+    if repeated >= 5:
+        reasons.append(f"source has {repeated} suspicious rows")
+    if strong_login_pattern:
+        ssh_score = confidence(0.62, reasons, 0.88)
+        if is_trusted_admin and not (failed >= 0.95 and connections >= 50 and risk >= 30):
+            ssh_score = max(0.35, round(ssh_score - 0.12, 2))
+            reasons.append("src_ip is marked as trusted/admin management source")
+        candidates.append(("SSH_BRUTE_FORCE_OR_LOGIN_PATTERN", ssh_score, reasons))
+
+    reasons = []
+    failed_pattern = failed >= 0.8 and (connections >= 10 or repeated >= 5 or bool_flag(row, "flag_brute_force"))
     if failed >= 0.8:
         reasons.append(f"failed_conn_rate_30s={failed:.2f} >= 0.8")
     if connections >= 10:
         reasons.append(f"connections_30s={connections:.0f} >= 10")
     if repeated >= 5:
         reasons.append(f"source has {repeated} suspicious rows")
-    if bool_flag(row, "flag_brute_force") or (
-        failed >= 0.8 and connections >= 10 and (has_ssh_context or repeated >= 5)
-    ):
-        base = 0.66 if has_ssh_context else 0.52
-        candidates.append(
-            ("SSH_BRUTE_FORCE_OR_LOGIN_PATTERN", confidence(base, reasons), reasons)
-        )
+    if bool_flag(row, "flag_brute_force"):
+        reasons.append("flag_brute_force is set without explicit SSH evidence")
+    if failed_pattern and not has_ssh_context:
+        failed_score = confidence(0.44, reasons, 0.72)
+        if is_trusted_admin:
+            failed_score = max(0.25, round(failed_score - 0.1, 2))
+            reasons.append("src_ip is marked as trusted/admin management source")
+        candidates.append(("FAILED_CONNECTION_PATTERN", failed_score, reasons))
 
     reasons = []
     if bool_flag(row, "flag_dns_flood"):
@@ -371,7 +431,7 @@ def classify_row(
     if risk >= 20:
         reasons.append(f"risk_score={risk:.2f} >= 20")
     if dns >= 1.0:
-        candidates.append(("DNS_ANOMALY", confidence(0.55, reasons), reasons))
+        candidates.append(("DNS_ANOMALY", confidence(0.55, reasons, 0.86), reasons))
 
     reasons = []
     medium_signals = 0
@@ -390,8 +450,15 @@ def classify_row(
     if connections >= 30:
         medium_signals += 1
         reasons.append(f"connections_30s={connections:.0f} >= 30")
-    if medium_signals >= 3:
-        candidates.append(("BOT_LIKE_BEHAVIOR", confidence(0.46, reasons, 0.78), reasons))
+    clearer_labels = {candidate[0] for candidate in candidates}
+    if medium_signals >= 3 and not clearer_labels.intersection({
+        "PORT_SCAN",
+        "SSH_BRUTE_FORCE_OR_LOGIN_PATTERN",
+        "FAILED_CONNECTION_PATTERN",
+        "DNS_ANOMALY",
+        "DOS_LIKE_BURST",
+    }):
+        candidates.append(("BOT_LIKE_BEHAVIOR", confidence(0.44, reasons, 0.74), reasons))
 
     if candidates:
         attack_type, score, reasons = sorted(
@@ -411,6 +478,11 @@ def classify_row(
         if 20 <= risk < 30:
             reasons.append(f"risk_score={risk:.2f} is in review range")
         score = confidence(0.25, reasons, 0.49)
+
+    if is_trusted_admin and "src_ip is marked as trusted/admin management source" not in reasons:
+        reasons = list(reasons) + ["src_ip is marked as trusted/admin management source"]
+        if attack_type in {"UNKNOWN_SUSPICIOUS", "LOW_SIGNAL_REVIEW"}:
+            score = max(0.25, round(score - 0.05, 2))
 
     time_value, _ = row_time(row)
     return {
@@ -447,7 +519,7 @@ def event_brief(event: dict[str, object]) -> str:
     )
 
 
-def audit_day(day: str) -> dict[str, object]:
+def audit_day(day: str, trusted_ips: set[str]) -> dict[str, object]:
     risk_file = REPORTS_DIR / f"risk_{day}.csv"
     rows = []
     suspicious_rows = []
@@ -462,7 +534,7 @@ def audit_day(day: str) -> dict[str, object]:
     suspicious_rows_by_src = Counter(row_value(row, "src_ip") for row in suspicious_rows)
     suspicious_rows_by_src.pop("", None)
     events = [
-        classify_row(row, suspicious_rows_by_src)
+        classify_row(row, suspicious_rows_by_src, trusted_ips)
         for row in suspicious_rows
     ]
     events.sort(key=event_sort_key, reverse=True)
@@ -502,6 +574,37 @@ def all_events(summaries: list[dict[str, object]]) -> list[dict[str, object]]:
             item["date"] = summary["date"]
             events.append(item)
     return sorted(events, key=event_sort_key, reverse=True)
+
+
+def top_display_events(events: list[dict[str, object]], top_count: int) -> list[dict[str, object]]:
+    non_low = [event for event in events if event["attack_type"] != "LOW_SIGNAL_REVIEW"]
+    if len(non_low) >= top_count:
+        return non_low[:top_count]
+    if non_low:
+        low = [event for event in events if event["attack_type"] == "LOW_SIGNAL_REVIEW"]
+        return (non_low + low)[:top_count]
+    return events[:top_count]
+
+
+def high_confidence_counts(events: list[dict[str, object]]) -> dict[str, int]:
+    counts = {attack_type: 0 for attack_type in ATTACK_TYPES}
+    non_low_present = any(event["attack_type"] != "LOW_SIGNAL_REVIEW" for event in events)
+    for event in events:
+        if float(event["confidence"]) < 0.65:
+            continue
+        attack_type = str(event["attack_type"])
+        if attack_type == "LOW_SIGNAL_REVIEW" and non_low_present:
+            continue
+        counts[attack_type] += 1
+    return counts
+
+
+def likely_actionable_events(events: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        event
+        for event in events
+        if float(event["confidence"]) >= 0.65 and event["attack_type"] != "LOW_SIGNAL_REVIEW"
+    ]
 
 
 def print_day_summary(summary: dict[str, object]) -> None:
@@ -555,10 +658,19 @@ def print_event(event: dict[str, object]) -> None:
     )
 
 
-def print_overall_summary(counts: dict[str, int]) -> None:
+def print_overall_summary(
+    counts: dict[str, int], high_counts: dict[str, int], actionable_count: int
+) -> None:
     print("Attack Classification Summary:")
     for attack_type in ATTACK_TYPES:
         print(f"  {attack_type}: {counts[attack_type]}")
+    print("High Confidence Summary:")
+    for attack_type in ATTACK_TYPES:
+        print(f"  {attack_type}: {high_counts[attack_type]}")
+    print("Likely Actionable Events:")
+    print(f"  {actionable_count}")
+    print("Classification Calibration:")
+    print(f"  {CALIBRATION_NOTE}")
     print("Classification Note:")
     print(f"  {CLASSIFICATION_NOTE}")
     print("Retraining Note:")
@@ -588,13 +700,19 @@ def export_payload(
     dates: list[str],
     summaries: list[dict[str, object]],
     summary_only: bool,
+    trusted_ips: set[str],
 ) -> dict[str, object]:
+    events = all_events(summaries)
     return {
         "trained_at": training_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "selected_dates": dates,
         "classification_note": CLASSIFICATION_NOTE,
+        "calibration_note": CALIBRATION_NOTE,
+        "trusted_admin_ips": sorted(trusted_ips),
         "days": [export_day(summary, summary_only) for summary in summaries],
         "overall_attack_type_counts": overall_counts(summaries),
+        "high_confidence_attack_type_counts": high_confidence_counts(events),
+        "likely_actionable_events": likely_actionable_events(events),
         "retraining_note": RETRAINING_NOTE,
         "safety_note": SAFETY_NOTE,
     }
@@ -617,6 +735,8 @@ def markdown_export(payload: dict[str, object], summary_only: bool) -> str:
         f"selected_dates: {', '.join(payload['selected_dates'])}",
         "",
         f"Classification Note: {payload['classification_note']}",
+        f"Classification Calibration: {payload['calibration_note']}",
+        f"trusted_admin_ips: {', '.join(payload['trusted_admin_ips']) if payload['trusted_admin_ips'] else 'none'}",
         "",
     ]
 
@@ -655,6 +775,12 @@ def markdown_export(payload: dict[str, object], summary_only: bool) -> str:
     lines.append("## Classification Summary")
     for attack_type in ATTACK_TYPES:
         lines.append(f"- {attack_type}: {payload['overall_attack_type_counts'][attack_type]}")
+
+    lines.extend(["", "## High Confidence Summary"])
+    for attack_type in ATTACK_TYPES:
+        lines.append(f"- {attack_type}: {payload['high_confidence_attack_type_counts'][attack_type]}")
+
+    lines.extend(["", "## Likely Actionable Events", "", str(len(payload['likely_actionable_events']))])
 
     lines.extend(
         [
@@ -698,6 +824,7 @@ def main() -> int:
 
     try:
         export_paths = validate_export_paths(args)
+        trusted_ips = trusted_admin_ips(args)
         dates = selected_dates(args, training_dt)
     except ValueError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
@@ -707,20 +834,26 @@ def main() -> int:
         print("[ERROR] No risk reports found for selected dates.", file=sys.stderr)
         return 1
 
-    summaries = [audit_day(day) for day in dates]
-    top_events = all_events(summaries)[: args.top]
+    summaries = [audit_day(day, trusted_ips) for day in dates]
+    events = all_events(summaries)
+    top_events = top_display_events(events, args.top)
     counts = overall_counts(summaries)
+    high_counts = high_confidence_counts(events)
+    actionable_events = likely_actionable_events(events)
 
     print("Attack Classification")
     print(f"trained_at: {training_dt.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"dates: {', '.join(dates)}")
+    print(f"trusted_admin_ips: {', '.join(sorted(trusted_ips)) if trusted_ips else 'none'}")
     print(f"Classification Note: {CLASSIFICATION_NOTE}")
+    print(f"Classification Calibration: {CALIBRATION_NOTE}")
     print()
 
     for summary in summaries:
         print_day_summary(summary)
 
     if not args.summary_only:
+        print("Top events prioritize higher-confidence non-low-signal classifications.")
         print(f"Top Classified Events: {len(top_events)}")
         if top_events:
             for event in top_events:
@@ -729,9 +862,9 @@ def main() -> int:
             print("  - none")
         print()
 
-    print_overall_summary(counts)
+    print_overall_summary(counts, high_counts, len(actionable_events))
 
-    payload = export_payload(training_dt, dates, summaries, args.summary_only)
+    payload = export_payload(training_dt, dates, summaries, args.summary_only, trusted_ips)
     write_exports(export_paths, payload, args.summary_only)
     print()
     print("[RESULT] ATTACK CLASSIFICATION COMPLETE")
