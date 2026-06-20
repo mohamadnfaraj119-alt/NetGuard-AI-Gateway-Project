@@ -72,6 +72,15 @@ Optional date-specific classification:
 python3 scripts/attack_classifier.py --date 2026-06-20 --top 5
 ```
 
+Optional classification with known management source awareness:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --trusted-admin-ip 192.168.1.104
+```
+
+Use trusted admin IPs only for known management machine IPs. Do not use trusted
+IPs to hide real attacks or suppress evidence.
+
 Export audit evidence for the report:
 
 ```bash
@@ -92,6 +101,7 @@ not commit generated export files.
 - Gateway Dashboard shows readiness safely.
 - Post-training audit shows label summary and conservative retraining recommendation.
 - Attack classification gives preliminary explainable labels with confidence and reasons.
+- v9.9 classification calibration avoids overclaiming SSH brute force without explicit SSH evidence.
 - Audit evidence export is explicit and limited to safe output paths.
 
 ## Safety Points

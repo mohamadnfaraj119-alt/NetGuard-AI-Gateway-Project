@@ -37,6 +37,9 @@ run_check "ATTACK CLASSIFICATION SUMMARY" \
 run_check "ATTACK CLASSIFICATION DATE SUMMARY" \
   python3 scripts/attack_classifier.py --date 2026-06-20 --top 3 --summary-only
 
+run_check "ATTACK CLASSIFICATION TRUSTED ADMIN SUMMARY" \
+  python3 scripts/attack_classifier.py --date 2026-06-20 --top 3 --summary-only --trusted-admin-ip 192.168.1.104
+
 echo "=== STATUS SERVER CHECK ==="
 if python3 - <<'PY'
 from urllib.error import URLError

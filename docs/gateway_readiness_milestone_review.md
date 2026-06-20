@@ -106,6 +106,14 @@ existing risk reports. It classifies suspicious windows into preliminary attack
 or behavior types with confidence scores and reasons for analyst review. These
 classifications are explainable aids, not guaranteed ground truth.
 
+## v9.9 Classification Calibration
+
+v9.9 calibrates classification output to reduce overclaiming, especially around
+SSH and normal administrative traffic. SSH brute-force classification now
+requires explicit SSH evidence, failed-connection behavior has a separate label,
+and optional trusted/admin IP awareness preserves evidence while reducing false
+positive pressure.
+
 ## Final Statement
 
 The v9.8 milestone represents a stable local gateway readiness, audit,

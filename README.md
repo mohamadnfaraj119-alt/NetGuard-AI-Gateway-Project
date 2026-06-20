@@ -524,11 +524,38 @@ Classification labels:
 
 - `PORT_SCAN`
 - `SSH_BRUTE_FORCE_OR_LOGIN_PATTERN`
+- `FAILED_CONNECTION_PATTERN`
 - `DNS_ANOMALY`
 - `DOS_LIKE_BURST`
 - `BOT_LIKE_BEHAVIOR`
 - `UNKNOWN_SUSPICIOUS`
 - `LOW_SIGNAL_REVIEW`
+
+v9.9 calibration makes SSH classification stricter: SSH brute-force/login
+classification requires explicit SSH evidence such as destination port 22 or
+`service=ssh`, plus strong suspicious behavior. Failed-connection behavior
+without explicit SSH evidence is classified as `FAILED_CONNECTION_PATTERN`
+instead of overclaiming SSH brute force.
+
+Trusted/admin management source IPs can be supplied explicitly:
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --trusted-admin-ip 192.168.1.104
+```
+
+Multiple trusted IPs may also be supplied with:
+
+```bash
+NETGUARD_TRUSTED_ADMIN_IPS="192.168.1.104,192.168.1.180" python3 scripts/attack_classifier.py --summary-only
+```
+
+Trusted IPs are never persisted and never hide evidence. They add an explicit
+reason and can reduce overclaiming for management traffic, but strong scan,
+DNS, or burst evidence still classifies normally.
+
+Reports now include a `High Confidence Summary` and `Likely Actionable Events`
+count. Top classified events prioritize higher-confidence non-low-signal labels
+so `LOW_SIGNAL_REVIEW` does not dominate when stronger classifications exist.
 
 ## Final Demo Verification
 
