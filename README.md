@@ -29,6 +29,29 @@ Home Devices (192.168.1.x)
 | Python    | 3.x     |
 | XGBoost   | latest  |
 
+## Final Graduation Baseline — v10.0
+
+v10.0 freezes NetGuard-AI Gateway as a stable graduation-ready baseline. It
+documents the completed local gateway readiness, audit, evidence export, and
+explainable attack classification workflow without adding new risky runtime
+features.
+
+Key verification commands:
+
+```bash
+bash scripts/final_project_check.sh
+python3 scripts/post_training_day_audit.py --summary-only
+python3 scripts/attack_classifier.py --summary-only
+bash scripts/run_gateway_dashboard.sh
+```
+
+Final baseline references:
+
+- `docs/final_graduation_baseline.md`
+- `docs/final_operational_workflow.md`
+- `docs/final_demo_script.md`
+- `docs/final_release_notes_v10.md`
+
 ## Quick Start
 
 ```bash

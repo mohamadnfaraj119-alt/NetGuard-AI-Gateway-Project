@@ -114,8 +114,15 @@ requires explicit SSH evidence, failed-connection behavior has a separate label,
 and optional trusted/admin IP awareness preserves evidence while reducing false
 positive pressure.
 
+## v10.0 Final Graduation Baseline
+
+v10.0 freezes a stable graduation baseline with final documentation,
+verification commands, demo workflow, release notes, and limitations. It adds no
+new risky runtime features and separates future product work from the current
+read-only local readiness, audit, classification, and evidence baseline.
+
 ## Final Statement
 
-The v9.8 milestone represents a stable local gateway readiness, audit,
-classification, and evidence workflow suitable for demonstration, review, and
-controlled operation.
+The v10.0 milestone represents a stable local gateway readiness, audit,
+classification, and evidence workflow suitable for final graduation
+demonstration, review, and controlled operation.

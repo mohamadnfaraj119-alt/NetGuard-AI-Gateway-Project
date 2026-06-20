@@ -14,7 +14,7 @@ run_check() {
   return "$rc"
 }
 
-echo "NetGuard-AI final project check"
+echo "NetGuard-AI v10.0 final baseline check"
 
 run_check "GIT STATUS" git status --short
 

@@ -77,6 +77,15 @@ The labels are preliminary and do not represent guaranteed ground truth. Missing
 columns are skipped gracefully, so classifications depend on the available risk
 report fields.
 
+## v10.0 Final Baseline Note
+
+The classification layer is included in the v10.0 final graduation baseline as
+a preliminary, explainable analyst aid. For reporting, prefer the
+High Confidence Summary and Likely Actionable Events sections over low-signal
+detail rows. `FAILED_CONNECTION_PATTERN` remains important because it reduces
+overclaiming SSH brute force when failed-connection evidence exists without
+explicit SSH evidence.
+
 ## Safety Model
 
 - Read-only by default.
