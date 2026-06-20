@@ -394,7 +394,7 @@ python3 scripts/gateway_status_smoke_test.py
 7. Explain that Grafana is a future monitoring and analytics layer, not part of
    the current local gateway readiness dashboard.
 
-## v9.6 Post-Training Day Audit
+## v9.7 Post-Training Day Audit
 
 `scripts/post_training_day_audit.py` audits days collected after the current
 model training date before considering retraining. It is read-only and uses
@@ -431,6 +431,22 @@ recommendation:
 python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only
 ```
 
+Export Markdown evidence:
+
+```bash
+python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only --export-md reports/audit_exports/post_training_audit_summary.md
+```
+
+Export JSON evidence:
+
+```bash
+python3 scripts/post_training_day_audit.py --date 2026-06-20 --top 3 --export-json reports/audit_exports/audit_2026-06-20.json
+```
+
+Exports are optional and never run by default. Export paths are accepted only
+under `/tmp/` or `reports/audit_exports/`; unsafe paths are rejected before any
+file is created.
+
 The audit outputs coverage hours, row counts, max risk score, suspicious
 indicator counts, preliminary labels, top suspicious windows, suspicious IP
 summaries, a final `Label Summary`, and a conservative `Retraining
@@ -462,6 +478,29 @@ Safety:
 - No service changes.
 - No Grafana.
 - No systemd.
+
+## Final Demo Verification
+
+Run the final project check before demo or submission:
+
+```bash
+bash scripts/final_project_check.sh
+```
+
+The check is safe and read-only for project state. It reports Git status,
+compiles core Python scripts, validates shell syntax, runs the post-training
+audit in summary mode, and runs the smoke test only when the local status server
+is already reachable. Start the dashboard manually when needed:
+
+```bash
+bash scripts/run_gateway_dashboard.sh
+```
+
+Then run:
+
+```bash
+python3 scripts/gateway_status_smoke_test.py
+```
 
 ## Philosophy
 

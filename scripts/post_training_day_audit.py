@@ -20,6 +20,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 REPORTS_DIR = BASE_DIR / "data" / "reports"
 WINDOWS_DIR = BASE_DIR / "data" / "windows"
 BASELINE_STATS = BASE_DIR / "models" / "anomaly" / "baseline_stats.json"
+REPORT_EXPORTS_DIR = BASE_DIR / "reports" / "audit_exports"
+PRELIMINARY_LABEL_NOTE = (
+    "Suggested labels are preliminary and do not automatically approve retraining."
+)
+SAFETY_EXPORT_NOTE = (
+    "Suggested labels do not automatically approve retraining. Manual review is "
+    "required before any retraining decision."
+)
 
 RISK_FILE_RE = re.compile(r"^risk_(\d{4}-\d{2}-\d{2})\.csv$")
 DATETIME_FORMATS = (
@@ -96,6 +104,14 @@ def parse_args() -> argparse.Namespace:
         "--summary-only",
         action="store_true",
         help="Suppress detailed suspicious window and IP sections.",
+    )
+    parser.add_argument(
+        "--export-md",
+        help="Export audit evidence to Markdown under /tmp/ or reports/audit_exports/.",
+    )
+    parser.add_argument(
+        "--export-json",
+        help="Export audit evidence to JSON under /tmp/ or reports/audit_exports/.",
     )
     args = parser.parse_args()
 
@@ -193,6 +209,36 @@ def selected_dates(args: argparse.Namespace, training_dt: datetime) -> list[str]
 
     available_dates = existing_report_dates()
     return [day for day in dates if day in available_dates]
+
+
+def validate_export_path(value: str) -> Path:
+    path = Path(value).expanduser()
+    resolved = path.resolve()
+    tmp_root = Path("/tmp").resolve()
+    reports_root = REPORT_EXPORTS_DIR.resolve()
+
+    try:
+        resolved.relative_to(tmp_root)
+        return resolved
+    except ValueError:
+        pass
+
+    try:
+        resolved.relative_to(reports_root)
+        return resolved
+    except ValueError as exc:
+        raise ValueError(
+            "export paths must be under /tmp/ or reports/audit_exports/"
+        ) from exc
+
+
+def validate_export_paths(args: argparse.Namespace) -> dict[str, Path]:
+    paths = {}
+    if args.export_md:
+        paths["md"] = validate_export_path(args.export_md)
+    if args.export_json:
+        paths["json"] = validate_export_path(args.export_json)
+    return paths
 
 
 def default_dates(training_dt: datetime) -> list[str]:
@@ -636,11 +682,156 @@ def print_label_summary(summaries: list[dict[str, object]]) -> None:
     print(f"  {retraining_recommendation(counts)}")
 
 
+def export_day(summary: dict[str, object], summary_only: bool) -> dict[str, object]:
+    day = {
+        "date": summary["date"],
+        "metrics": {
+            "risk_rows": summary["risk_rows"],
+            "windows_rows": summary["windows_rows"],
+            "time_start": format_datetime(summary["time_start"]),
+            "time_end": format_datetime(summary["time_end"]),
+            "coverage_hours": round(float(summary["coverage_hours"]), 2),
+            "unique_src_ip": summary["unique_src_ip"],
+            "max_risk_score": round(float(summary["max_risk_score"]), 2),
+        },
+        "threshold_counts": {
+            "risk_score_ge_20": summary["risk_ge_20"],
+            "risk_score_ge_30": summary["risk_ge_30"],
+            "risk_score_ge_60": summary["risk_ge_60"],
+            "anomaly_score_ge_035": summary["anomaly_ge_035"],
+            "failed_conn_rate_30s_ge_08": summary["failed_conn_rate_ge_08"],
+            "connections_30s_ge_80": summary["connections_ge_80"],
+            "dns_rate_30s_ge_10": summary["dns_rate_ge_10"],
+        },
+        "suggested_label": summary["suggested_label"],
+        "review_notes": summary["review_notes"],
+    }
+
+    if not summary_only:
+        day["top_suspicious_windows"] = summary.get("top_suspicious_windows", [])
+        day["suspicious_ip_summary"] = summary.get("suspicious_ip_summary", [])
+
+    return day
+
+
+def audit_export_payload(
+    training_dt: datetime, dates: list[str], summaries: list[dict[str, object]], summary_only: bool
+) -> dict[str, object]:
+    counts = label_counts(summaries)
+    return {
+        "trained_at": training_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "selected_dates": dates,
+        "preliminary_label_note": PRELIMINARY_LABEL_NOTE,
+        "days": [export_day(summary, summary_only) for summary in summaries],
+        "label_summary": counts,
+        "retraining_recommendation": retraining_recommendation(counts),
+        "safety_note": SAFETY_EXPORT_NOTE,
+    }
+
+
+def markdown_table_rows(rows: object) -> list[str]:
+    if not rows:
+        return ["- none"]
+    return [
+        "- " + " ".join(f"{key}={value}" for key, value in row.items())
+        for row in rows
+    ]
+
+
+def markdown_export(payload: dict[str, object], summary_only: bool) -> str:
+    lines = [
+        "# Post-Training Day Audit",
+        "",
+        f"trained_at: {payload['trained_at']}",
+        f"selected_dates: {', '.join(payload['selected_dates'])}",
+        "",
+        f"Note: {payload['preliminary_label_note']}",
+        "",
+    ]
+
+    for day in payload["days"]:
+        metrics = day["metrics"]
+        thresholds = day["threshold_counts"]
+        lines.extend(
+            [
+                f"## Date: {day['date']}",
+                "",
+                f"- risk_rows: {metrics['risk_rows']}",
+                f"- windows_rows: {metrics['windows_rows']}",
+                f"- time_start: {metrics['time_start']}",
+                f"- time_end: {metrics['time_end']}",
+                f"- coverage_hours: {metrics['coverage_hours']:.2f}",
+                f"- unique_src_ip: {metrics['unique_src_ip']}",
+                f"- max_risk_score: {metrics['max_risk_score']:.2f}",
+                f"- risk_score >= 20: {thresholds['risk_score_ge_20']}",
+                f"- risk_score >= 30: {thresholds['risk_score_ge_30']}",
+                f"- risk_score >= 60: {thresholds['risk_score_ge_60']}",
+                f"- anomaly_score >= 0.35: {thresholds['anomaly_score_ge_035']}",
+                "- failed_conn_rate_30s >= 0.8: "
+                f"{thresholds['failed_conn_rate_30s_ge_08']}",
+                f"- connections_30s >= 80: {thresholds['connections_30s_ge_80']}",
+                f"- dns_rate_30s >= 1.0: {thresholds['dns_rate_30s_ge_10']}",
+                f"- suggested_label: {day['suggested_label']}",
+                "",
+                "### Review Notes",
+            ]
+        )
+        lines.extend(f"- {note}" for note in day["review_notes"])
+
+        if not summary_only:
+            lines.extend(["", "### Top Suspicious Windows"])
+            lines.extend(markdown_table_rows(day.get("top_suspicious_windows", [])))
+            lines.extend(["", "### Suspicious IP Summary"])
+            lines.extend(markdown_table_rows(day.get("suspicious_ip_summary", [])))
+
+        lines.append("")
+
+    lines.append("## Label Summary")
+    for label in KNOWN_LABELS:
+        lines.append(f"- {label}: {payload['label_summary'][label]}")
+
+    lines.extend(
+        [
+            "",
+            "## Retraining Recommendation",
+            "",
+            str(payload["retraining_recommendation"]),
+            "",
+            "## Safety Note",
+            "",
+            str(payload["safety_note"]),
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_exports(
+    paths: dict[str, Path], payload: dict[str, object], summary_only: bool
+) -> None:
+    if not paths:
+        return
+
+    for path in paths.values():
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    if "md" in paths:
+        paths["md"].write_text(markdown_export(payload, summary_only), encoding="utf-8")
+        print(f"Exported Markdown: {paths['md']}")
+    if "json" in paths:
+        paths["json"].write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"Exported JSON: {paths['json']}")
+
+
 def main() -> int:
     args = parse_args()
     training_dt = load_training_datetime()
 
     try:
+        export_paths = validate_export_paths(args)
         dates = selected_dates(args, training_dt)
     except ValueError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
@@ -666,6 +857,8 @@ def main() -> int:
         print_summary(summary, args.summary_only)
 
     print_label_summary(summaries)
+    payload = audit_export_payload(training_dt, dates, summaries, args.summary_only)
+    write_exports(export_paths, payload, args.summary_only)
     print()
     print("[RESULT] POST-TRAINING DAY AUDIT COMPLETE")
     return 0
