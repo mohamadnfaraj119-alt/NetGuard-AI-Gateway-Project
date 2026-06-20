@@ -37,6 +37,20 @@ TOP_WINDOW_VALUE_FIELDS = (
     "dns_rate_30s",
 )
 TOP_WINDOW_SORT_FIELDS = ("risk_score", "anomaly_score", "connections_30s")
+SUSPICIOUS_IP_THRESHOLDS = (
+    ("risk_score", 20.0),
+    ("anomaly_score", 0.35),
+    ("failed_conn_rate_30s", 0.8),
+    ("connections_30s", 80.0),
+    ("dns_rate_30s", 1.0),
+)
+SUSPICIOUS_IP_MAX_FIELDS = (
+    ("risk_score", "max_risk_score"),
+    ("anomaly_score", "max_anomaly_score"),
+    ("connections_30s", "max_connections_30s"),
+    ("failed_conn_rate_30s", "max_failed_conn_rate_30s"),
+    ("dns_rate_30s", "max_dns_rate_30s"),
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -194,6 +208,93 @@ def compact_top_window(row: dict[str, str]) -> dict[str, str]:
     return compact
 
 
+def is_suspicious_ip_row(row: dict[str, str]) -> bool:
+    for field, threshold in SUSPICIOUS_IP_THRESHOLDS:
+        value = parse_float(row.get(field, ""))
+        if value is not None and value >= threshold:
+            return True
+    return False
+
+
+def update_suspicious_ip_group(
+    groups: dict[str, dict[str, object]], row: dict[str, str], dt: datetime | None
+) -> None:
+    src_ip = row.get("src_ip", "").strip()
+    if not src_ip or not is_suspicious_ip_row(row):
+        return
+
+    group = groups.setdefault(
+        src_ip,
+        {
+            "src_ip": src_ip,
+            "suspicious_rows": 0,
+            "max_risk_score": None,
+            "max_anomaly_score": None,
+            "max_connections_30s": None,
+            "max_failed_conn_rate_30s": None,
+            "max_dns_rate_30s": None,
+            "first_time": None,
+            "last_time": None,
+        },
+    )
+    group["suspicious_rows"] = int(group["suspicious_rows"]) + 1
+
+    for source_field, output_field in SUSPICIOUS_IP_MAX_FIELDS:
+        value = parse_float(row.get(source_field, ""))
+        current = group[output_field]
+        if value is not None and (current is None or value > float(current)):
+            group[output_field] = value
+
+    if dt is not None:
+        first_time = group["first_time"]
+        last_time = group["last_time"]
+        if first_time is None or dt < first_time:
+            group["first_time"] = dt
+        if last_time is None or dt > last_time:
+            group["last_time"] = dt
+
+
+def format_compact_number(value: object) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value):.4f}".rstrip("0").rstrip(".")
+
+
+def compact_suspicious_ip_group(group: dict[str, object]) -> dict[str, object]:
+    return {
+        "src_ip": group["src_ip"],
+        "suspicious_rows": group["suspicious_rows"],
+        "max_risk_score": format_compact_number(group["max_risk_score"]),
+        "max_anomaly_score": format_compact_number(group["max_anomaly_score"]),
+        "max_connections_30s": format_compact_number(group["max_connections_30s"]),
+        "max_failed_conn_rate_30s": format_compact_number(
+            group["max_failed_conn_rate_30s"]
+        ),
+        "max_dns_rate_30s": format_compact_number(group["max_dns_rate_30s"]),
+        "first_time": format_datetime(group["first_time"]),
+        "last_time": format_datetime(group["last_time"]),
+    }
+
+
+def suspicious_ip_sort_key(group: dict[str, object]) -> tuple[float, int, float]:
+    max_risk = group["max_risk_score"]
+    max_anomaly = group["max_anomaly_score"]
+    return (
+        float(max_risk) if max_risk is not None else float("-inf"),
+        int(group["suspicious_rows"]),
+        float(max_anomaly) if max_anomaly is not None else float("-inf"),
+    )
+
+
+def build_suspicious_ip_summary(
+    groups: dict[str, dict[str, object]]
+) -> list[dict[str, object]]:
+    sorted_groups = sorted(
+        groups.values(), key=suspicious_ip_sort_key, reverse=True
+    )[:5]
+    return [compact_suspicious_ip_group(group) for group in sorted_groups]
+
+
 def audit_day(day: str) -> dict[str, object]:
     risk_file = REPORTS_DIR / f"risk_{day}.csv"
     windows_file = WINDOWS_DIR / f"windows_{day}.csv"
@@ -217,6 +318,7 @@ def audit_day(day: str) -> dict[str, object]:
         "suggested_label": "INCOMPLETE",
         "review_notes": [],
         "top_suspicious_windows": [],
+        "suspicious_ip_summary": [],
     }
 
     if not risk_file.exists():
@@ -226,6 +328,7 @@ def audit_day(day: str) -> dict[str, object]:
     src_ips = set()
     datetimes = []
     top_window_candidates = []
+    suspicious_ip_groups = {}
 
     with risk_file.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
@@ -261,6 +364,8 @@ def audit_day(day: str) -> dict[str, object]:
             if sort_key is not None and compact:
                 top_window_candidates.append((sort_key, compact))
 
+            update_suspicious_ip_group(suspicious_ip_groups, row, dt)
+
     summary["unique_src_ip"] = len(src_ips)
     summary["top_suspicious_windows"] = [
         row
@@ -268,6 +373,9 @@ def audit_day(day: str) -> dict[str, object]:
             top_window_candidates, key=lambda candidate: candidate[0], reverse=True
         )[:5]
     ]
+    summary["suspicious_ip_summary"] = build_suspicious_ip_summary(
+        suspicious_ip_groups
+    )
 
     if datetimes:
         start = min(datetimes)
@@ -389,6 +497,14 @@ def print_summary(summary: dict[str, object]) -> None:
     top_windows = summary.get("top_suspicious_windows", [])
     if top_windows:
         for row in top_windows:
+            fields = " ".join(f"{key}={value}" for key, value in row.items())
+            print(f"    - {fields}")
+    else:
+        print("    - none")
+    print("  suspicious_ip_summary:")
+    suspicious_ips = summary.get("suspicious_ip_summary", [])
+    if suspicious_ips:
+        for row in suspicious_ips:
             fields = " ".join(f"{key}={value}" for key, value in row.items())
             print(f"    - {fields}")
     else:
