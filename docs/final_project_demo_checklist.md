@@ -118,6 +118,9 @@ not commit generated export files.
 
 ## Screenshot Checklist
 
+- Git status clean.
+- Final release link.
+- v10.0 final project check passed.
 - Dashboard live status.
 - Demo OK.
 - Demo WARN.
@@ -128,7 +131,19 @@ not commit generated export files.
 - Attack classification summary.
 - Audit evidence export output.
 
+## v10.0 Final Checklist
+
+- `git status` is clean before the presentation.
+- `bash scripts/final_project_check.sh` passes.
+- Post-training audit summary screenshot is captured.
+- Attack classification summary screenshot is captured.
+- Dashboard live status screenshot is captured.
+- Demo OK/WARN/FAIL screenshots are captured if relevant.
+- Smoke test screenshot is captured while the dashboard is running.
+- Final release link is available for the supervisor.
+
 ## Closing Message
 
-The demo should show that v9.8 is a stable local gateway readiness, audit,
-classification, and evidence workflow suitable for presentation and review.
+The demo should show that v10.0 is a stable final graduation baseline with
+local gateway readiness, audit, classification, and evidence workflows suitable
+for presentation and review.

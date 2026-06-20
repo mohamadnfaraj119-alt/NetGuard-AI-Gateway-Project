@@ -1,73 +1,127 @@
 # Final Operational Workflow
 
-This workflow keeps the NetGuard-AI Gateway demo and audit process explicit,
-local, and safe.
+This is the final v10.0 operating workflow for demo, review, and submission.
+It keeps all actions explicit, local, and read-only unless an operator
+explicitly exports evidence to a safe path.
 
-## Dashboard Readiness
-
-Start the dashboard manually:
-
-```bash
-bash scripts/run_gateway_dashboard.sh
-```
-
-Open:
-
-```text
-http://127.0.0.1:8787/
-```
-
-Run the smoke test after the dashboard is running:
+## 1. Verify Repository Status
 
 ```bash
-python3 scripts/gateway_status_smoke_test.py
+git status
 ```
 
-## Audit Review
+Expected success marker: no unexpected modified files before the demo.
 
-Run the post-training audit summary:
-
-```bash
-python3 scripts/post_training_day_audit.py --summary-only
-```
-
-Run the attack classification summary:
-
-```bash
-python3 scripts/attack_classifier.py --summary-only
-```
-
-Run classification with known management source awareness when appropriate:
-
-```bash
-python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --trusted-admin-ip 192.168.1.104
-```
-
-Export report evidence when needed:
-
-```bash
-python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only --export-md reports/audit_exports/post_training_audit_summary.md --export-json reports/audit_exports/post_training_audit_summary.json
-```
-
-Export classification evidence when needed:
-
-```bash
-python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --export-md reports/audit_exports/attack_classification.md --export-json reports/audit_exports/attack_classification.json
-```
-
-Do not retrain if suspicious validation days are present. Suggested labels and
-recommendations are preliminary and never automatically approve retraining.
-Attack classification labels are also preliminary and intended for analyst
-review, not automatic retraining approval. Trusted/admin IPs should only be used
-for known management machines and must not be used to hide real attacks.
-
-## Final Verification
-
-Run:
+## 2. Run Final Project Check
 
 ```bash
 bash scripts/final_project_check.sh
 ```
 
-Grafana and systemd remain future or optional layers, not part of the current
-final-project verification workflow.
+Expected success marker:
+
+```text
+[RESULT] FINAL PROJECT CHECK PASSED
+```
+
+If the status server is not running, the check skips the smoke test and prints
+how to start the dashboard manually. That skip is expected for a cold terminal.
+
+## 3. Run Post-Training Audit Summary
+
+```bash
+python3 scripts/post_training_day_audit.py --summary-only
+```
+
+Screenshot: label summary and retraining recommendation.
+
+## 4. Export Audit Evidence
+
+```bash
+python3 scripts/post_training_day_audit.py --summary-only --export-md /tmp/netguard_final_audit.md --export-json /tmp/netguard_final_audit.json
+```
+
+Expected success markers:
+
+```text
+Exported Markdown: /tmp/netguard_final_audit.md
+Exported JSON: /tmp/netguard_final_audit.json
+```
+
+## 5. Run Attack Classification Summary
+
+```bash
+python3 scripts/attack_classifier.py --summary-only
+```
+
+Screenshot: Attack Classification Summary, High Confidence Summary, and Likely
+Actionable Events.
+
+## 6. Run Focused Classification Example
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5
+```
+
+Screenshot: top classified events with confidence and reasons.
+
+## 7. Optional Trusted/Admin IP Example
+
+```bash
+python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --trusted-admin-ip 192.168.1.104
+```
+
+Use `--trusted-admin-ip` only for known management machine IPs. It does not
+hide evidence and should not be used to suppress real attacks.
+
+## 8. Start Local Dashboard
+
+```bash
+bash scripts/run_gateway_dashboard.sh
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Screenshot: live dashboard status and demo mode views.
+
+## 9. Run Smoke Test In Another Terminal
+
+```bash
+python3 scripts/gateway_status_smoke_test.py
+```
+
+Expected success marker: all smoke test checks pass. If the status server is
+not running, start it first with `bash scripts/run_gateway_dashboard.sh`.
+
+## 10. Stop Dashboard
+
+Use:
+
+```text
+Ctrl+C
+```
+
+## Demo Screenshot Checklist
+
+- `git status` clean.
+- Final project check passed.
+- Post-training audit summary.
+- Attack classification summary.
+- Focused classification event details.
+- Dashboard live status.
+- Dashboard Demo OK, Demo WARN, and Demo FAIL states.
+- Smoke test passed.
+- Evidence export success lines.
+
+## Final Safety Reminders
+
+- No sudo for final demo commands.
+- No `--apply`.
+- No retraining.
+- No data or model changes.
+- No firewall, iptables, service, or system changes.
+- Grafana, Kafka, and systemd are future work, not the v10.0 baseline.
