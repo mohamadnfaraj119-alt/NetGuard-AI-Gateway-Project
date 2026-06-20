@@ -34,10 +34,22 @@ Run smoke test:
 python3 scripts/gateway_status_smoke_test.py
 ```
 
-Run post-training audit:
+Run default post-training audit:
 
 ```bash
 python3 scripts/post_training_day_audit.py
+```
+
+Run a date-specific audit:
+
+```bash
+python3 scripts/post_training_day_audit.py --date 2026-06-20
+```
+
+Run a summary-only audit for quick review:
+
+```bash
+python3 scripts/post_training_day_audit.py --from 2026-06-18 --to 2026-06-20 --summary-only
 ```
 
 ## What to Explain During the Demo
@@ -49,7 +61,7 @@ python3 scripts/post_training_day_audit.py
 - XGBoost is a supporting signature-style layer.
 - Risk Engine combines indicators into a 0-100 Risk Score.
 - Gateway Dashboard shows readiness safely.
-- Post-training audit prevents unsafe retraining.
+- Post-training audit shows label summary and conservative retraining recommendation.
 
 ## Safety Points
 
@@ -74,5 +86,5 @@ python3 scripts/post_training_day_audit.py
 
 ## Closing Message
 
-The demo should show that v9.3 is a stable local gateway readiness and audit
+The demo should show that v9.6 is a stable local gateway readiness and audit
 workflow suitable for presentation and review.
