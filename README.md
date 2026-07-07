@@ -52,6 +52,35 @@ Final baseline references:
 - `docs/final_demo_script.md`
 - `docs/final_release_notes_v10.md`
 
+## Professional Demo Dashboard — v10.1
+
+v10.1 adds a supervisor-ready local dashboard layer on top of the stable v10.0
+baseline. It improves the visual presentation of gateway readiness, audit
+status, retraining recommendation, attack classification summary, top classified
+events, and demo mode states without changing detection logic, models,
+thresholds, or risk scoring.
+
+Run locally:
+
+```bash
+bash scripts/run_gateway_dashboard.sh
+```
+
+Open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Optional smoke test while the dashboard is running:
+
+```bash
+python3 scripts/gateway_status_smoke_test.py
+```
+
+The dashboard is local-only/read-only and does not replace the detection
+pipeline. It presents readiness and saved evidence snapshots for review.
+
 ## Quick Start
 
 ```bash

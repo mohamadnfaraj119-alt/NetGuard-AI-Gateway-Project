@@ -105,8 +105,10 @@ Exports are allowed only through the script options and safe output paths.
 ## 10. Dashboard And Readiness Workflow
 
 The dashboard is a local, read-only readiness view. It exposes local status API
-data and demo modes for presentation. It does not provide remediation actions,
-configuration changes, firewall changes, or background automation.
+data and demo modes for presentation. v10.1 adds a Professional Demo Dashboard
+layer that also displays saved audit and Attack Classification evidence
+summaries for a cleaner supervisor demo. It does not provide remediation
+actions, configuration changes, firewall changes, or background automation.
 
 Start it manually:
 

@@ -14,7 +14,7 @@ run_check() {
   return "$rc"
 }
 
-echo "NetGuard-AI v10.0 final baseline check"
+echo "NetGuard-AI v10.1 professional demo dashboard check"
 
 run_check "GIT STATUS" git status --short
 
@@ -27,6 +27,11 @@ run_check "PYTHON COMPILE" python3 -m py_compile \
 
 run_check "DASHBOARD SHELL SYNTAX" bash -n scripts/run_gateway_dashboard.sh
 run_check "FINAL CHECK SHELL SYNTAX" bash -n scripts/final_project_check.sh
+
+run_check "V10.1 DASHBOARD FILE" test -s dashboard/index.html
+run_check "V10.1 DASHBOARD LABELS" grep -E \
+  "NetGuard-AI Gateway|Attack Classification|Read-only|Final Baseline|Demo Dashboard" \
+  dashboard/index.html
 
 run_check "POST-TRAINING AUDIT SUMMARY" \
   python3 scripts/post_training_day_audit.py --summary-only

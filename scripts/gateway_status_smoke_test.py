@@ -112,7 +112,7 @@ def check_dashboard(base_url):
         return False
 
     text = body.decode("utf-8", errors="replace")
-    if "<html" not in text.lower() or "NetGuard-AI Gateway Control" not in text:
+    if "<html" not in text.lower() or "NetGuard-AI Gateway" not in text:
         fail(
             "GET / dashboard endpoint responded, but expected dashboard text "
             "was not found"
@@ -120,6 +120,41 @@ def check_dashboard(base_url):
         return False
 
     ok("GET / returned HTTP 200 with dashboard HTML")
+    return True
+
+
+def check_demo_summary(base_url):
+    status, _content_type, body, error = request(base_url, "/api/demo-summary")
+    if error:
+        fail(request_failure("GET", "/api/demo-summary", error))
+        return False
+    if status != 200:
+        fail(f"GET /api/demo-summary returned HTTP {status}, expected 200")
+        return False
+
+    payload = parse_json(body)
+    if not isinstance(payload, dict):
+        fail("GET /api/demo-summary did not return a JSON object")
+        return False
+
+    required = {"project", "read_only", "classification"}
+    missing = sorted(required - payload.keys())
+    if missing:
+        fail(
+            "GET /api/demo-summary JSON contract may have changed; "
+            f"missing required keys: {', '.join(missing)}"
+        )
+        return False
+    if payload.get("project") != "NetGuard-AI Gateway" or payload.get("read_only") is not True:
+        fail("GET /api/demo-summary returned unexpected project or read_only fields")
+        return False
+
+    classification = payload.get("classification")
+    if not isinstance(classification, dict) or "available" not in classification:
+        fail("GET /api/demo-summary classification field is missing availability")
+        return False
+
+    ok("GET /api/demo-summary returned HTTP 200 with expected JSON keys")
     return True
 
 
@@ -139,6 +174,26 @@ def check_post_rejected(base_url):
     return True
 
 
+def check_demo_summary_post_rejected(base_url):
+    status, _content_type, _body, error = request(
+        base_url,
+        "/api/demo-summary",
+        method="POST",
+    )
+    if error:
+        fail(request_failure("POST", "/api/demo-summary", error))
+        return False
+    if status != 405:
+        fail(
+            f"POST /api/demo-summary returned HTTP {status}, expected 405; "
+            "write methods should remain rejected"
+        )
+        return False
+
+    ok("POST /api/demo-summary returned HTTP 405 Method Not Allowed")
+    return True
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Run read-only smoke tests against the Gateway Status API"
@@ -153,7 +208,9 @@ def main():
         check_healthz,
         check_api_status,
         check_dashboard,
+        check_demo_summary,
         check_post_rejected,
+        check_demo_summary_post_rejected,
     )
 
     results = [check(args.base_url) for check in checks]

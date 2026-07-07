@@ -1,7 +1,8 @@
 # Final Operational Workflow
 
-This is the final v10.0 operating workflow for demo, review, and submission.
-It keeps all actions explicit, local, and read-only unless an operator
+This is the final v10.0 operating workflow for demo, review, and submission,
+with the v10.1 Professional Demo Dashboard used as the supervisor-facing
+presentation layer. It keeps all actions explicit, local, and read-only unless an operator
 explicitly exports evidence to a safe path.
 
 ## 1. Verify Repository Status
@@ -88,6 +89,10 @@ http://127.0.0.1:8787/
 
 Screenshot: live dashboard status and demo mode views.
 
+For v10.1, capture the Professional Demo Dashboard overview, gateway readiness
+cards, Attack Classification summary, audit/retraining recommendation panel,
+top classified events table, and demo mode panel.
+
 ## 9. Run Smoke Test In Another Terminal
 
 ```bash
@@ -105,6 +110,15 @@ Use:
 Ctrl+C
 ```
 
+## v10.1 Dashboard Workflow
+
+1. Start the dashboard with `bash scripts/run_gateway_dashboard.sh`.
+2. Open `http://127.0.0.1:8787/`.
+3. Capture the overview, readiness cards, classification summary, audit panel,
+   top events table, and demo mode states.
+4. Run `python3 scripts/gateway_status_smoke_test.py`.
+5. Stop the dashboard with `Ctrl+C`.
+
 ## Demo Screenshot Checklist
 
 - `git status` clean.
@@ -113,6 +127,11 @@ Ctrl+C
 - Attack classification summary.
 - Focused classification event details.
 - Dashboard live status.
+- Professional dashboard overview.
+- Gateway readiness cards.
+- Attack classification summary.
+- Audit/retraining recommendation.
+- Demo mode panel.
 - Dashboard Demo OK, Demo WARN, and Demo FAIL states.
 - Smoke test passed.
 - Evidence export success lines.
