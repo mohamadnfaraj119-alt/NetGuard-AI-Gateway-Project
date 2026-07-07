@@ -81,3 +81,12 @@ python3 scripts/attack_classifier.py --date 2026-06-20 --top 5 --export-md /tmp/
 - Kafka streaming pipeline.
 - ML attack classifier after reviewed labels.
 - Product packaging.
+
+## v10.1 Post-Baseline Dashboard Note
+
+v10.1 is a post-baseline demo/dashboard polish release. It adds a professional
+local dashboard presentation layer for readiness, audit recommendation, and
+saved Attack Classification evidence visibility. It is not a replacement for
+the v10.0 final graduation baseline and does not change detection logic, risk
+scoring, models, thresholds, training, Zeek configuration, firewall behavior,
+services, or deployment.

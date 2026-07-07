@@ -14,6 +14,11 @@ anomaly scoring, risk scoring, audit evidence, and explainable classification."
 project for submission. It does not add risky runtime features; it documents
 and verifies the stable workflow."
 
+"v10.1 adds a Professional Demo Dashboard presentation layer on top of that
+baseline. It improves how the project is shown to a supervisor, but the
+detection logic, risk scoring, models, thresholds, and classification logic
+remain the stable v10.0 baseline."
+
 ## 3. Final Project Check
 
 Run:
@@ -73,8 +78,14 @@ http://127.0.0.1:8787/
 
 Say:
 
-"The dashboard is local and read-only. It shows gateway readiness and demo
-states without making firewall, service, or system changes."
+"The dashboard is local and read-only. It shows gateway readiness, audit and
+retraining recommendation, a saved Attack Classification evidence snapshot, and
+demo states without making firewall, service, model, training, or system
+changes."
+
+"The classification view is based on saved evidence. It is preliminary and
+explainable, not guaranteed ground truth or a claim of real-time attack
+classification."
 
 ## 7. Smoke Test
 
@@ -103,6 +114,7 @@ is never automatic."
 Say:
 
 "Future productization can add hardened gateway deployment, historical storage,
-alerting, Grafana monitoring, Kafka streaming, multi-sensor support, packaging,
-and an ML attack classifier after reviewed labels exist. Those are prepared as
-future work but are not included in v10.0."
+alerting, Grafana monitoring, Kafka streaming, Telegram notifications,
+multi-sensor support, packaging, and an ML attack classifier after reviewed
+labels exist. Those are prepared as future work but are not included in the
+v10.0 baseline or v10.1 dashboard polish release."

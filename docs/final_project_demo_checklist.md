@@ -32,6 +32,11 @@ http://127.0.0.1:8787/
 Show:
 
 - Live status.
+- Professional dashboard overview.
+- Gateway readiness cards.
+- Attack classification summary.
+- Audit/retraining recommendation.
+- Demo mode panel.
 - Demo OK.
 - Demo WARN.
 - Demo FAIL.
@@ -99,6 +104,8 @@ not commit generated export files.
 - XGBoost is a supporting signature-style layer.
 - Risk Engine combines indicators into a 0-100 Risk Score.
 - Gateway Dashboard shows readiness safely.
+- v10.1 Professional Demo Dashboard improves presentation only; v10.0 detection
+  logic remains the stable baseline.
 - Post-training audit shows label summary and conservative retraining recommendation.
 - Attack classification gives preliminary explainable labels with confidence and reasons.
 - v9.9 classification calibration avoids overclaiming SSH brute force without explicit SSH evidence.
@@ -122,6 +129,11 @@ not commit generated export files.
 - Final release link.
 - v10.0 final project check passed.
 - Dashboard live status.
+- Professional dashboard overview.
+- Gateway readiness cards.
+- Attack classification summary.
+- Audit/retraining recommendation.
+- Demo mode panel.
 - Demo OK.
 - Demo WARN.
 - Demo FAIL.
