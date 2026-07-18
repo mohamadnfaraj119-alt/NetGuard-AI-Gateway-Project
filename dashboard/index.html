@@ -47,6 +47,7 @@
       color: var(--text);
       font-family: var(--sans);
       line-height: 1.45;
+      scroll-behavior: smooth;
     }
 
     body::before {
@@ -289,6 +290,10 @@
       width: min(1480px, calc(100% - 48px));
       margin: 0 auto;
       padding: 26px 0 34px;
+    }
+
+    [id] {
+      scroll-margin-top: 96px;
     }
 
     .badge-row,
@@ -883,12 +888,12 @@
         <div class="side-subtitle">Local read-only SOC view</div>
       </div>
       <nav class="nav">
-        <a class="active" href="#overview"><span class="nav-icon">01</span><span>Overview</span></a>
-        <a href="#threats"><span class="nav-icon">02</span><span>Threats</span></a>
-        <a href="#audit"><span class="nav-icon">03</span><span>Audit</span></a>
-        <a href="#gateway"><span class="nav-icon">04</span><span>Gateway</span></a>
-        <a href="#evidence"><span class="nav-icon">05</span><span>Evidence</span></a>
-        <a href="#future"><span class="nav-icon">06</span><span>Future Work</span></a>
+        <a class="active" href="#overview" data-section="overview"><span class="nav-icon">01</span><span>Overview</span></a>
+        <a href="#threats" data-section="threats"><span class="nav-icon">02</span><span>Threats</span></a>
+        <a href="#audit" data-section="audit"><span class="nav-icon">03</span><span>Audit</span></a>
+        <a href="#gateway" data-section="gateway"><span class="nav-icon">04</span><span>Gateway</span></a>
+        <a href="#evidence" data-section="evidence"><span class="nav-icon">05</span><span>Evidence</span></a>
+        <a href="#future-work" data-section="future-work"><span class="nav-icon">06</span><span>Future Work</span></a>
       </nav>
       <div class="sidebar-note">
         <strong>Honest Scope</strong>
@@ -1088,7 +1093,7 @@
             </div>
           </section>
 
-          <section class="panel" id="future" aria-label="Future productization panel">
+          <section class="panel" id="future-work" aria-label="Future productization panel">
             <div class="panel-header">
               <h2>Future Productization</h2>
               <span class="chip purple"><span class="dot"></span>Not part of this sprint</span>
@@ -1162,6 +1167,7 @@
     };
 
     const refreshButton = document.getElementById("refresh");
+    const navLinks = Array.from(document.querySelectorAll(".nav a[data-section]"));
     const updated = document.getElementById("updated");
     const gatewayCard = document.getElementById("gateway-card");
     const gatewayStatus = document.getElementById("gateway-status");
@@ -1192,6 +1198,24 @@
 
     function setText(element, value) {
       element.textContent = value;
+    }
+
+    function setActiveSection(sectionId) {
+      for (const link of navLinks) {
+        link.classList.toggle("active", link.dataset.section === sectionId);
+      }
+    }
+
+    function navigateToSection(sectionId, updateHash = true, behavior = "smooth") {
+      const target = document.getElementById(sectionId);
+      if (!target) {
+        return;
+      }
+      target.scrollIntoView({behavior, block: "start"});
+      setActiveSection(sectionId);
+      if (updateHash) {
+        history.pushState(null, "", `#${sectionId}`);
+      }
     }
 
     function cardState(element, state) {
@@ -1464,8 +1488,41 @@
       refreshButton.disabled = false;
     }
 
+    for (const link of navLinks) {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        navigateToSection(link.dataset.section);
+      });
+    }
+
+    if ("IntersectionObserver" in window) {
+      const observedSections = navLinks
+        .map((link) => document.getElementById(link.dataset.section))
+        .filter(Boolean);
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) {
+          setActiveSection(visible.target.id);
+        }
+      }, {
+        root: null,
+        rootMargin: "-20% 0px -55% 0px",
+        threshold: [0.12, 0.25, 0.5]
+      });
+      for (const section of observedSections) {
+        observer.observe(section);
+      }
+    }
+
     refreshButton.addEventListener("click", refreshDashboard);
-    refreshDashboard();
+    refreshDashboard().then(() => {
+      const initialSection = window.location.hash.replace("#", "");
+      if (initialSection && document.getElementById(initialSection)) {
+        setTimeout(() => navigateToSection(initialSection, false, "auto"), 50);
+      }
+    });
   </script>
 </body>
 </html>
