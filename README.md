@@ -107,6 +107,10 @@ v10.2.4 enforces that same true single-page behavior with strict sidebar button
 targets, in-DOM dashboard panels, and no hash, scroll, reload, or page-link
 navigation.
 
+v10.2.5 converts the SOC dashboard from tab-style section switching to a
+unified one-page layout where Overview, Threats, Audit & Evidence, and Gateway
+& Roadmap are visible together for supervisor review.
+
 ## Quick Start
 
 ```bash
