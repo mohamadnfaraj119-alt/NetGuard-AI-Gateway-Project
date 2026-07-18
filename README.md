@@ -81,6 +81,20 @@ python3 scripts/gateway_status_smoke_test.py
 The dashboard is local-only/read-only and does not replace the detection
 pipeline. It presents readiness and saved evidence snapshots for review.
 
+## Professional SOC Dashboard — v10.2
+
+v10.2 redesigns the local dashboard as a Professional SOC dashboard inspired by
+the selected Google Stitch cybersecurity reference. It adds a premium dark
+sidebar layout, SOC metric cards, active inference pipeline, threat
+classification summary, recent classified events table, post-training audit
+panel, gateway readiness panel, network topology card, evidence cards, and
+future productization panel.
+
+This dashboard update is presentation-only. It remains local-only, read-only,
+offline-capable, browser-native HTML/CSS/JS, and does not change detection
+logic, risk scoring, models, thresholds, training, Zeek configuration,
+firewall, services, or data.
+
 ## Quick Start
 
 ```bash
