@@ -32,10 +32,6 @@
       box-sizing: border-box;
     }
 
-    [hidden] {
-      display: none !important;
-    }
-
     body {
       margin: 0;
       min-height: 100vh;
@@ -302,6 +298,11 @@
       padding: 26px 0 34px;
     }
 
+    .dashboard-main {
+      display: grid;
+      gap: 22px;
+    }
+
     .badge-row,
     .metric-row,
     .status-row {
@@ -359,14 +360,6 @@
     .grid {
       display: grid;
       gap: 18px;
-    }
-
-    .dashboard-panel {
-      display: none;
-    }
-
-    .dashboard-panel.active {
-      display: block;
     }
 
     .metrics {
@@ -902,10 +895,10 @@
         <div class="side-subtitle">Local read-only SOC view</div>
       </div>
       <nav class="nav">
-        <button class="nav-item active" type="button" data-panel-target="overview" aria-controls="panel-overview"><span class="nav-icon">01</span><span>Overview</span></button>
-        <button class="nav-item" type="button" data-panel-target="threats" aria-controls="panel-threats"><span class="nav-icon">02</span><span>Threats</span></button>
-        <button class="nav-item" type="button" data-panel-target="audit-evidence" aria-controls="panel-audit-evidence"><span class="nav-icon">03</span><span>Audit & Evidence</span></button>
-        <button class="nav-item" type="button" data-panel-target="gateway-roadmap" aria-controls="panel-gateway-roadmap"><span class="nav-icon">04</span><span>Gateway & Roadmap</span></button>
+        <button class="nav-item active" type="button"><span class="nav-icon">01</span><span>Overview</span></button>
+        <button class="nav-item" type="button"><span class="nav-icon">02</span><span>Threats</span></button>
+        <button class="nav-item" type="button"><span class="nav-icon">03</span><span>Audit & Evidence</span></button>
+        <button class="nav-item" type="button"><span class="nav-icon">04</span><span>Gateway & Roadmap</span></button>
       </nav>
       <div class="sidebar-note">
         <strong>Honest Scope</strong>
@@ -930,8 +923,8 @@
         </div>
       </header>
 
-      <main class="content">
-        <section class="dashboard-panel active" id="panel-overview" data-panel="overview" aria-label="Overview dashboard panel">
+      <main class="content dashboard-main">
+        <section class="dashboard-section" id="overview" aria-label="Overview dashboard section">
           <section class="grid metrics" aria-label="SOC overview metrics">
             <article class="metric-card info" id="gateway-card">
               <div class="metric-label">Gateway Status</div>
@@ -1018,7 +1011,7 @@
           </section>
         </section>
 
-        <section class="dashboard-panel" id="panel-threats" data-panel="threats" aria-label="Threats dashboard panel">
+        <section class="dashboard-section" id="threats" aria-label="Threats dashboard section">
           <section class="grid two-column">
             <section class="panel" aria-label="Threat classification summary">
               <div class="panel-header">
@@ -1057,7 +1050,7 @@
           </section>
         </section>
 
-        <section class="dashboard-panel" id="panel-audit-evidence" data-panel="audit-evidence" aria-label="Audit and Evidence dashboard panel">
+        <section class="dashboard-section" id="audit-evidence" aria-label="Audit and Evidence dashboard section">
           <section class="grid two-column">
             <section class="panel" aria-label="Post-training audit panel">
               <div class="panel-header">
@@ -1105,7 +1098,7 @@
           </section>
         </section>
 
-        <section class="dashboard-panel" id="panel-gateway-roadmap" data-panel="gateway-roadmap" aria-label="Gateway and Roadmap dashboard panel">
+        <section class="dashboard-section" id="gateway-roadmap" aria-label="Gateway and Roadmap dashboard section">
           <section class="grid two-column">
             <section class="panel" aria-label="Gateway readiness panel">
               <div class="panel-header">
@@ -1203,8 +1196,6 @@
     };
 
     const refreshButton = document.getElementById("refresh");
-    const navButtons = Array.from(document.querySelectorAll("[data-panel-target]"));
-    const dashboardPanels = Array.from(document.querySelectorAll("[data-panel]"));
     const updated = document.getElementById("updated");
     const gatewayCard = document.getElementById("gateway-card");
     const gatewayStatus = document.getElementById("gateway-status");
@@ -1235,24 +1226,6 @@
 
     function setText(element, value) {
       element.textContent = value;
-    }
-
-    function setActivePanel(panelName) {
-      for (const button of navButtons) {
-        button.classList.toggle("active", button.dataset.panelTarget === panelName);
-      }
-      for (const panel of dashboardPanels) {
-        panel.classList.toggle("active", panel.dataset.panel === panelName);
-      }
-    }
-
-    function showPanel(panelName) {
-      const panelExists = dashboardPanels.some((panel) => panel.dataset.panel === panelName);
-      setActivePanel(panelExists ? panelName : "overview");
-    }
-
-    function switchPanel(panelName) {
-      showPanel(panelName);
     }
 
     function cardState(element, state) {
@@ -1525,18 +1498,8 @@
       refreshButton.disabled = false;
     }
 
-    for (const button of navButtons) {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        switchPanel(button.dataset.panelTarget);
-      });
-    }
-
     refreshButton.addEventListener("click", refreshDashboard);
-    switchPanel("overview");
-    refreshDashboard().then(() => {
-      switchPanel(document.querySelector(".dashboard-panel.active")?.dataset.panel || "overview");
-    });
+    refreshDashboard();
   </script>
 </body>
 </html>

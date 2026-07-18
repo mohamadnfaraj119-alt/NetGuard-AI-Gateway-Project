@@ -33,7 +33,7 @@ run_check "V10.2 DASHBOARD LABELS" grep -E \
   "NetGuard-AI Gateway|Attack Classification|Read-only|Final Baseline|SOC Dashboard" \
   dashboard/index.html
 
-echo "=== V10.2.4 TRUE SINGLE-PAGE DASHBOARD NAVIGATION ==="
+echo "=== V10.2.5 UNIFIED ONE-PAGE DASHBOARD LAYOUT ==="
 if find dashboard -maxdepth 2 -type f \( \
   -name "overview.html" -o \
   -name "threats.html" -o \
@@ -48,12 +48,16 @@ if find dashboard -maxdepth 2 -type f \( \
   status=1
 fi
 
-if grep -RInE "overview\.html|threats\.html|audit\.html|audit-evidence\.html|gateway\.html|gateway-roadmap\.html|evidence\.html|future\.html|roadmap\.html|href=[\"']/(overview|threats|audit|gateway|evidence|future|roadmap)|window\.location|location\.href|location\.assign|location\.replace|location\.hash\s*=|history\.pushState|scrollIntoView|window\.scrollTo" dashboard; then
+if grep -RInE "overview\.html|threats\.html|audit\.html|audit-evidence\.html|gateway\.html|gateway-roadmap\.html|evidence\.html|future\.html|roadmap\.html|href=[\"']/(overview|threats|audit|gateway|evidence|future|roadmap)|window\.location|location\.href|location\.assign|location\.replace|location\.hash\s*=|history\.pushState|scrollIntoView|window\.scrollTo|showPanel|switchPanel|setActivePanel|data-panel-target|data-panel-content" dashboard; then
   status=1
 fi
 
-run_check "V10.2.4 PANEL NAV MARKERS" grep -E \
-  "data-panel-target|data-panel=|dashboard-panel|Gateway & Roadmap|Audit & Evidence" \
+if grep -RInE "\.dashboard-panel\s*\{[^}]*display\s*:\s*none|\.dashboard-panel:not|visibility\s*:\s*hidden" dashboard; then
+  status=1
+fi
+
+run_check "V10.2.5 UNIFIED SECTION MARKERS" grep -E \
+  "dashboard-section|Overview|Threats|Audit & Evidence|Gateway & Roadmap" \
   dashboard/index.html
 
 run_check "POST-TRAINING AUDIT SUMMARY" \

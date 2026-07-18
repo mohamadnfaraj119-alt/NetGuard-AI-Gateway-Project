@@ -41,6 +41,12 @@ supervisor-demo sections already exist inside `dashboard/index.html`, and the
 dashboard does not use separate section pages, hash navigation, scroll
 navigation, or document reloads.
 
+## v10.2.5 Unified One-Page Layout
+
+v10.2.5 converts the dashboard from tab-style section switching to a unified
+one-page layout where all key supervisor-demo sections are visible together:
+Overview, Threats, Audit & Evidence, and Gateway & Roadmap.
+
 ## What The Dashboard Shows
 
 - SOC-style top metric cards for Gateway Status, Risk Level, Actionable Events,
@@ -103,10 +109,10 @@ Stop the dashboard with `Ctrl+C`.
 
 ## Screenshots To Capture
 
-- Overview.
-- Threats.
-- Audit & Evidence.
-- Gateway & Roadmap.
+- Unified dashboard overview.
+- Threats section.
+- Audit & Evidence section.
+- Gateway & Roadmap section.
 - Smoke test output.
 
 ## Limitations

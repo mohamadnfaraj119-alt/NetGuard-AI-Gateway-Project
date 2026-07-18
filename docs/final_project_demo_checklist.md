@@ -106,6 +106,8 @@ not commit generated export files.
   switching for the four supervisor-demo sections.
 - v10.2.4 verifies there are no section HTML pages, page links, hash jumps, or
   scroll navigation in the SOC dashboard.
+- v10.2.5 shows Overview, Threats, Audit & Evidence, and Gateway & Roadmap
+  together in one unified dashboard page.
 - Post-training audit shows label summary and conservative retraining recommendation.
 - Attack classification gives preliminary explainable labels with confidence and reasons.
 - v9.9 classification calibration avoids overclaiming SSH brute force without explicit SSH evidence.
@@ -128,10 +130,10 @@ not commit generated export files.
 - Git status clean.
 - Final release link.
 - v10.0 final project check passed.
-- Overview.
-- Threats.
-- Audit & Evidence.
-- Gateway & Roadmap.
+- Unified dashboard overview.
+- Threats section.
+- Audit & Evidence section.
+- Gateway & Roadmap section.
 - Final project check passed.
 - Smoke test output.
 - Post-training audit output.
