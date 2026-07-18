@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NetGuard-AI Gateway | SOC Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#1d2023",
+                        "surface-container-lowest": "#0c0e12",
+                        "tertiary-container": "#34fc0d",
+                        "on-tertiary-container": "#106f00",
+                        "on-primary": "#00363a",
+                        "on-background": "#e1e2e7",
+                        "surface-container-highest": "#323539",
+                        "inverse-primary": "#00696f",
+                        "secondary-fixed-dim": "#ebb2ff",
+                        "tertiary-fixed-dim": "#2ae500",
+                        "primary-fixed-dim": "#00dbe7",
+                        "on-surface-variant": "#b9cacb",
+                        "surface-dim": "#111417",
+                        "secondary-fixed": "#f8d8ff",
+                        "on-secondary": "#520072",
+                        "surface-bright": "#37393d",
+                        "on-tertiary-fixed": "#022100",
+                        "primary-container": "#00f2ff",
+                        "on-primary-fixed": "#002022",
+                        "on-surface": "#e1e2e7",
+                        "on-error-container": "#ffdad6",
+                        "outline": "#849495",
+                        "surface-tint": "#00dbe7",
+                        "primary": "#e1fdff",
+                        "secondary-container": "#b600f8",
+                        "tertiary-fixed": "#79ff5b",
+                        "surface": "#111417",
+                        "tertiary": "#e4ffd6",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed-variant": "#095300",
+                        "inverse-surface": "#e1e2e7",
+                        "on-secondary-fixed": "#320047",
+                        "on-secondary-container": "#fff6fc",
+                        "surface-variant": "#323539",
+                        "background": "#111417",
+                        "surface-container-low": "#191c1f",
+                        "on-tertiary": "#053900",
+                        "error-container": "#93000a",
+                        "secondary": "#ebb2ff",
+                        "on-primary-container": "#006a71",
+                        "on-secondary-fixed-variant": "#74009f",
+                        "outline-variant": "#3a494b",
+                        "primary-fixed": "#74f5ff",
+                        "on-primary-fixed-variant": "#004f54",
+                        "inverse-on-surface": "#2e3134",
+                        "on-error": "#690005",
+                        "surface-container-high": "#282a2e",
+                        "cyber-cyan": "#00f2ff",
+                        "cyber-magenta": "#bc13fe",
+                        "cyber-lime": "#39ff14"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "data-mono": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0c0e12;
+            color: #e1e2e7;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(29, 32, 35, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 242, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(0, 242, 255, 0.4);
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.15);
+        }
+        .neon-border-cyan {
+            border: 1px solid transparent;
+            background: linear-gradient(#111417, #111417) padding-box,
+                        linear-gradient(to right, #00f2ff, transparent) border-box;
+        }
+        .neon-glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+        }
+        .neon-glow-magenta {
+            box-shadow: 0 0 20px rgba(188, 19, 254, 0.4);
+        }
+        .neon-glow-lime {
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+        }
+        @keyframes flow {
+            from { stroke-dashoffset: 20; }
+            to { stroke-dashoffset: 0; }
+        }
+        .flow-line {
+            stroke-dasharray: 4 2;
+            animation: flow 0.8s linear infinite;
+        }
+        .technical-grid {
+            background-image: radial-gradient(rgba(0, 242, 255, 0.03) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+        .status-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="font-body-md technical-grid min-h-screen">
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-full w-64 z-40 bg-surface-container-lowest/80 border-r border-white/5 backdrop-blur-xl flex flex-col pt-20 pb-8 h-full">
+<div class="px-6 mb-10 flex flex-col items-start">
+<img alt="NetGuard Logo" class="w-12 h-12 mb-4 drop-shadow-[0_0_8px_rgba(0,242,255,0.5)]" src="https://lh3.googleusercontent.com/aida/AP1WRLvMuCW7MciSRBFA7IDj7_TVcEBpDJJksYEKCnOVVs__uGdkLDaZ71fCnQRtHyYkyduysRrnIfZz7c-74z2gUqLXF13d-hOU7j2oRWKqz7nA58HX1UFrqcjAbBwmkjBvwddjUUjaC_DEbjn8aURUCecIwESAa6PqvLUKFk3CWdsJt1nXuSlpQw47kM45oSfUmbClWZ7o-eSG2hePHAFETxc0KHptR8XLt0VqCOk1_TqcvldFjBL6135sFRw6"/>
+<h1 class="font-headline-sm text-headline-sm font-black text-cyber-cyan tracking-tighter uppercase">NetGuard-AI</h1>
+<p class="text-on-surface-variant font-label-caps text-[10px] opacity-70">Vigilance Active | يقظة نشطة</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="bg-cyber-cyan/10 text-cyber-cyan border-r-4 border-cyber-cyan flex items-center px-6 py-4 gap-4 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label-caps text-[12px]">Overview</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-6 py-4 gap-4 hover:bg-surface-variant/30 hover:text-cyber-cyan transition-all duration-200" href="#">
+<span class="material-symbols-outlined">security</span>
+<span class="font-label-caps text-[12px]">Threats</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-6 py-4 gap-4 hover:bg-surface-variant/30 hover:text-cyber-cyan transition-all duration-200" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-[12px]">Audit</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-6 py-4 gap-4 hover:bg-surface-variant/30 hover:text-cyber-cyan transition-all duration-200" href="#">
+<span class="material-symbols-outlined">router</span>
+<span class="font-label-caps text-[12px]">Gateway</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-6 py-4 gap-4 hover:bg-surface-variant/30 hover:text-cyber-cyan transition-all duration-200" href="#">
+<span class="material-symbols-outlined">folder_shared</span>
+<span class="font-label-caps text-[12px]">Evidence</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-6 py-4 gap-4 hover:bg-surface-variant/30 hover:text-cyber-cyan transition-all duration-200" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+<span class="font-label-caps text-[12px]">Future Work</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<button class="w-full bg-cyber-magenta/10 border border-cyber-magenta/30 text-cyber-magenta font-label-caps text-[11px] py-3 rounded hover:bg-cyber-magenta/20 transition-all uppercase tracking-widest mb-6 neon-glow-magenta/20">
+                Emergency Lockdown
+            </button>
+<div class="space-y-4 pt-4 border-t border-white/5">
+<a class="text-on-surface-variant hover:text-cyber-cyan flex items-center gap-4 text-[11px] font-label-caps" href="#">
+<span class="material-symbols-outlined text-sm">contact_support</span> Support
+                </a>
+<a class="text-on-surface-variant hover:text-cyber-magenta flex items-center gap-4 text-[11px] font-label-caps" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> Sign Out
+                </a>
+</div>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl border-b border-white/10 flex justify-between items-center h-16 px-6 pl-72">
+<div class="flex items-center gap-6">
+<span class="font-headline-md text-[20px] font-bold text-cyber-cyan tracking-tighter uppercase">NetGuard-AI Gateway</span>
+<div class="h-6 w-px bg-white/10"></div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-cyber-lime neon-glow-lime status-pulse"></div>
+<span class="text-cyber-lime font-data-mono text-[12px] uppercase">Core: Stable</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative">
+<span class="absolute inset-y-0 left-3 flex items-center text-outline">
+<span class="material-symbols-outlined text-sm">search</span>
+</span>
+<input class="bg-surface-container-low border-none ring-1 ring-white/10 rounded-full pl-10 pr-4 py-1.5 text-[13px] font-data-mono focus:ring-cyber-cyan w-64 transition-all" placeholder="Query gateway logs..." type="text"/>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="hover:text-cyber-cyan transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="hover:text-cyber-cyan transition-colors"><span class="material-symbols-outlined">settings</span></button>
+<div class="flex items-center gap-3 ml-2 border-l border-white/10 pl-4">
+<img class="w-8 h-8 rounded-full border border-cyber-cyan/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApqsnXMGhrUvICeDiSddjnOYnJanVQyumdmutWefCXcVeS3z5IiO_T3a5KK5CvdsGcfbW7jNgcQaw24zULuFHMUs1GH_GwCuG93slhibFiKpQs__hhG1blJhnuVqTz-chgo8PaIeF0Xj46kpuyUbuLYbV-aoyhYg2Gy0bk7DxCoxTLv4mPrt9vnkxnMloEtBomuJ4qoLH4I-o14RcCgB2dSM6lS-xe0WzzNh_TWv28IXj756BmTRVPxg"/>
+<span class="font-label-caps text-[11px] text-cyber-cyan">Analyst-07</span>
+</div>
+</div>
+</div>
+</header>
+<main class="ml-64 pt-24 px-8 pb-12">
+<!-- 1. Security Metrics Row -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+<div class="glass-card p-5 rounded-xl border-l-4 border-l-cyber-cyan flex flex-col justify-between neon-glow-cyan/20">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-caps text-[10px]">Gateway Status | حالة البوابة</span>
+<span class="material-symbols-outlined text-cyber-cyan">router</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-[28px] text-cyber-cyan font-bold tracking-tight">READY</span>
+<span class="text-cyber-cyan/60 font-data-mono text-[12px]">99.9% Up</span>
+</div>
+</div>
+<div class="glass-card p-5 rounded-xl border-l-4 border-l-cyber-lime flex flex-col justify-between neon-glow-lime/10">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-caps text-[10px]">Risk Level | مستوى المخاطر</span>
+<span class="material-symbols-outlined text-cyber-lime">verified_user</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-[28px] text-cyber-lime font-bold">LOW</span>
+<span class="text-on-surface-variant font-data-mono text-[12px]">Stable</span>
+</div>
+</div>
+<div class="glass-card p-5 rounded-xl border-l-4 border-l-cyber-magenta flex flex-col justify-between neon-glow-magenta/30">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-caps text-[10px]">Actionable Events</span>
+<span class="material-symbols-outlined text-cyber-magenta">priority_high</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-[28px] text-cyber-magenta font-bold">31</span>
+<span class="text-cyber-magenta/60 font-data-mono text-[12px] font-bold">Unresolved</span>
+</div>
+</div>
+<div class="glass-card p-5 rounded-xl border-l-4 border-l-cyber-cyan/50 flex flex-col justify-between">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-caps text-[10px]">API Health | صحة API</span>
+<span class="material-symbols-outlined text-cyber-cyan/50">api</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-[28px] text-cyber-cyan/50 font-bold">ONLINE</span>
+<span class="text-on-surface-variant font-data-mono text-[12px]">12ms</span>
+</div>
+</div>
+</div>
+<!-- 2. Active Inference Pipeline -->
+<div class="glass-card rounded-xl p-8 mb-8 overflow-hidden relative neon-border-cyan">
+<div class="flex items-center gap-4 mb-10">
+<span class="material-symbols-outlined text-cyber-cyan">hub</span>
+<h3 class="font-headline-sm text-lg uppercase font-bold tracking-widest text-cyber-cyan">Active Inference Pipeline | تدفق الاستنتاج النشط</h3>
+</div>
+<div class="flex justify-between items-center relative py-12 px-16">
+<div class="flex flex-col items-center gap-4 z-10 group">
+<div class="w-16 h-16 rounded-xl bg-surface-container-low border border-cyber-cyan/30 flex items-center justify-center relative overflow-hidden group-hover:neon-glow-cyan transition-all">
+<span class="material-symbols-outlined text-cyber-cyan text-3xl">terminal</span>
+<div class="absolute inset-0 bg-cyber-cyan/5"></div>
+</div>
+<span class="font-data-mono text-[11px] text-cyber-cyan uppercase tracking-tighter">Zeek Logs</span>
+</div>
+<div class="flex-1 h-px bg-cyber-cyan/20 mx-6 relative">
+<div class="absolute inset-0 flex items-center justify-center">
+<svg class="w-full h-2">
+<line class="flow-line stroke-cyber-cyan opacity-60" stroke-width="2" x1="0" x2="100%" y1="1" y2="1"></line>
+</svg>
+</div>
+</div>
+<div class="flex flex-col items-center gap-4 z-10">
+<div class="w-24 h-24 rounded-full bg-surface-container border-2 border-cyber-cyan flex items-center justify-center relative neon-glow-cyan ring-4 ring-cyber-cyan/10">
+<span class="material-symbols-outlined text-cyber-cyan text-5xl">psychology</span>
+<div class="absolute -top-2 -right-2 bg-cyber-lime text-surface text-[10px] font-bold px-2 py-0.5 rounded-full neon-glow-lime">LIVE</div>
+</div>
+<span class="font-data-mono text-[12px] text-cyber-cyan font-bold uppercase mt-2">ML Inference Engine</span>
+</div>
+<div class="flex-1 h-px bg-cyber-cyan/20 mx-6 relative">
+<div class="absolute inset-0 flex items-center justify-center">
+<svg class="w-full h-2">
+<line class="flow-line stroke-cyber-cyan opacity-60" stroke-width="2" x1="0" x2="100%" y1="1" y2="1"></line>
+</svg>
+</div>
+</div>
+<div class="flex flex-col items-center gap-4 z-10 group">
+<div class="w-16 h-16 rounded-xl bg-surface-container-low border border-cyber-cyan/30 flex items-center justify-center relative group-hover:border-cyber-cyan transition-all">
+<span class="material-symbols-outlined text-cyber-cyan/70 text-3xl">category</span>
+</div>
+<span class="font-data-mono text-[11px] text-cyber-cyan/70 uppercase tracking-tighter">Classification</span>
+</div>
+</div>
+</div>
+<!-- 3. Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+<!-- Left Column: Threat Breakdown & Donut -->
+<div class="lg:col-span-4 space-y-8">
+<div class="glass-card rounded-xl p-6">
+<h4 class="font-label-caps text-[11px] text-on-surface-variant mb-6 uppercase border-b border-white/5 pb-3">Threat Signature Breakdown | توزيع تهديدات التوقيع</h4>
+<div class="space-y-6">
+<div class="flex flex-col gap-2">
+<div class="flex justify-between font-data-mono text-[13px]">
+<span class="text-on-surface-variant">Port Scan / مسح المنافذ</span>
+<span class="text-cyber-cyan">42%</span>
+</div>
+<div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-cyan neon-glow-cyan" style="width: 42%"></div>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between font-data-mono text-[13px]">
+<span class="text-on-surface-variant">DNS Anomaly / شذوذ DNS</span>
+<span class="text-cyber-lime">28%</span>
+</div>
+<div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-lime neon-glow-lime" style="width: 28%"></div>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between font-data-mono text-[13px]">
+<span class="text-on-surface-variant">L7 Overflow</span>
+<span class="text-cyber-magenta">15%</span>
+</div>
+<div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-magenta neon-glow-magenta" style="width: 15%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-card rounded-xl p-6 flex flex-col items-center">
+<h4 class="w-full font-label-caps text-[11px] text-on-surface-variant mb-6 uppercase border-b border-white/5 pb-3">Distribution Confidence | دقة التوزيع</h4>
+<div class="relative w-48 h-48 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-white/5" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-cyber-cyan transition-all duration-1000 ease-out drop-shadow-[0_0_8px_#00f2ff]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-dasharray="502.4" stroke-dashoffset="60" stroke-linecap="round" stroke-width="12"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="text-3xl font-data-mono font-bold text-cyber-cyan">88%</span>
+<span class="text-[10px] font-label-caps text-on-surface-variant tracking-widest uppercase">Confidence</span>
+</div>
+</div>
+<div class="mt-6 grid grid-cols-2 gap-4 w-full">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-cyber-cyan neon-glow-cyan"></span>
+<span class="font-data-mono text-[11px] text-on-surface-variant">Validated</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="font-data-mono text-[11px] text-on-surface-variant">Suspect</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Recent Events Table -->
+<div class="lg:col-span-8">
+<div class="glass-card rounded-xl overflow-hidden h-full">
+<div class="p-6 border-b border-white/5 flex justify-between items-center bg-surface-container-low/30">
+<h4 class="font-label-caps text-[11px] text-cyber-cyan font-bold uppercase tracking-wider">Recent Classified Events | الأحداث المصنفة الأخيرة</h4>
+<button class="text-cyber-cyan font-label-caps text-[10px] hover:neon-glow-cyan transition-all px-2 py-1 rounded bg-cyber-cyan/5">View All Logs</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-highest/20 font-data-mono text-[11px] text-on-surface-variant">
+<th class="px-6 py-4 font-bold border-none">Timestamp</th>
+<th class="px-6 py-4 font-bold border-none">Source IP</th>
+<th class="px-6 py-4 font-bold border-none">Type</th>
+<th class="px-6 py-4 font-bold border-none text-right">Conf.</th>
+<th class="px-6 py-4 font-bold border-none">Risk Score</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-[12px] divide-y divide-white/5">
+<tr class="hover:bg-cyber-cyan/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface-variant">14:22:01.054</td>
+<td class="px-6 py-4 text-cyber-cyan">192.168.1.104</td>
+<td class="px-6 py-4"><span class="bg-cyber-cyan/10 text-cyber-cyan px-2 py-0.5 rounded border border-cyber-cyan/30 text-[10px]">DNS_QUER_ANOM</span></td>
+<td class="px-6 py-4 text-right">0.94</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-cyan/50" style="width: 24%"></div>
+</div>
+<span class="text-on-surface-variant">24</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-cyber-magenta/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface-variant">14:21:58.210</td>
+<td class="px-6 py-4 text-cyber-magenta font-bold">10.0.44.12</td>
+<td class="px-6 py-4"><span class="bg-cyber-magenta/10 text-cyber-magenta px-2 py-0.5 rounded border border-cyber-magenta/30 text-[10px]">SYN_FLOOD_ATT</span></td>
+<td class="px-6 py-4 text-right">0.99</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-magenta" style="width: 88%"></div>
+</div>
+<span class="text-cyber-magenta font-bold">88</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-cyber-cyan/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface-variant">14:20:12.887</td>
+<td class="px-6 py-4 text-cyber-cyan">172.16.0.4</td>
+<td class="px-6 py-4"><span class="bg-cyber-lime/10 text-cyber-lime px-2 py-0.5 rounded border border-cyber-lime/30 text-[10px]">SQL_INJ_PROB</span></td>
+<td class="px-6 py-4 text-right">0.82</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-lime/60" style="width: 45%"></div>
+</div>
+<span class="text-on-surface-variant">45</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-cyber-cyan/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface-variant">14:18:45.332</td>
+<td class="px-6 py-4 text-cyber-cyan">192.168.5.21</td>
+<td class="px-6 py-4"><span class="bg-cyber-cyan/10 text-cyber-cyan px-2 py-0.5 rounded border border-cyber-cyan/30 text-[10px]">SSH_BRUTE_DET</span></td>
+<td class="px-6 py-4 text-right">0.91</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-cyan/40" style="width: 38%"></div>
+</div>
+<span class="text-on-surface-variant">38</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-cyber-cyan/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface-variant">14:15:33.109</td>
+<td class="px-6 py-4 text-cyber-cyan">10.0.1.55</td>
+<td class="px-6 py-4"><span class="bg-cyber-cyan/10 text-cyber-cyan px-2 py-0.5 rounded border border-cyber-cyan/30 text-[10px]">PORT_SCAN_TCP</span></td>
+<td class="px-6 py-4 text-right">0.87</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-cyber-cyan/30" style="width: 31%"></div>
+</div>
+<span class="text-on-surface-variant">31</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- 4. Bottom Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Audit Panel -->
+<div class="glass-card rounded-xl p-6 border-l-4 border-l-cyber-magenta bg-cyber-magenta/5 neon-glow-magenta/20 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-cyber-magenta/5 rounded-full -mr-12 -mt-12 blur-2xl"></div>
+<div class="flex items-center gap-3 mb-4 text-cyber-magenta">
+<span class="material-symbols-outlined status-pulse">warning</span>
+<h4 class="font-label-caps text-[11px] uppercase font-bold tracking-widest">Post-Training Audit | تدقيق ما بعد التدريب</h4>
+</div>
+<div class="space-y-4">
+<div class="bg-surface-container-low/60 p-4 rounded border border-cyber-magenta/20">
+<span class="text-cyber-magenta font-data-mono text-[12px] block mb-2 font-bold">ALERT: Suspicious Validation Days</span>
+<p class="text-[13px] leading-relaxed text-on-surface-variant">Deviation detected in temporal patterns on Day 12 and 14. Dataset integrity is currently <span class="text-cyber-magenta underline decoration-cyber-magenta/30">compromised</span>.</p>
+</div>
+<div class="flex items-center justify-between p-3 border border-cyber-magenta/40 rounded bg-cyber-magenta/10 group cursor-pointer hover:bg-cyber-magenta/20 transition-all">
+<span class="font-bold text-cyber-magenta tracking-tighter uppercase text-[10px] font-label-caps">DO NOT RETRAIN SYSTEM</span>
+<span class="material-symbols-outlined text-cyber-magenta">lock_reset</span>
+</div>
+</div>
+</div>
+<!-- System Readiness -->
+<div class="glass-card rounded-xl p-6">
+<h4 class="font-label-caps text-[11px] text-on-surface-variant mb-6 uppercase border-b border-white/5 pb-3 font-bold tracking-wider">System Readiness | جاهزية النظام</h4>
+<ul class="space-y-4 font-data-mono text-[12px]">
+<li class="flex items-center justify-between">
+<span class="text-on-surface-variant">Default Route (IPv4/v6)</span>
+<span class="text-cyber-lime flex items-center gap-2 font-bold">PASS <span class="material-symbols-outlined text-[16px] neon-glow-lime">check_circle</span></span>
+</li>
+<li class="flex items-center justify-between">
+<span class="text-on-surface-variant">Zeek Interface (ens18)</span>
+<span class="text-cyber-cyan flex items-center gap-2 font-bold">ACTIVE <span class="material-symbols-outlined text-[16px] neon-glow-cyan">check_circle</span></span>
+</li>
+<li class="flex items-center justify-between">
+<span class="text-on-surface-variant">KMS Encryption Keys</span>
+<span class="text-cyber-cyan flex items-center gap-2 font-bold">LOADED <span class="material-symbols-outlined text-[16px]">verified</span></span>
+</li>
+<li class="flex items-center justify-between">
+<span class="text-on-surface-variant">Elastic Stack Link</span>
+<span class="text-cyber-magenta flex items-center gap-2 font-bold">SYNCING <span class="material-symbols-outlined text-[16px] animate-spin">sync</span></span>
+</li>
+<li class="flex items-center justify-between">
+<span class="text-on-surface-variant">AI Kernel Version</span>
+<span class="text-cyber-cyan font-bold">v4.2.1-stable</span>
+</li>
+</ul>
+</div>
+<!-- Network Topology Diagram -->
+<div class="glass-card rounded-xl p-6 flex flex-col">
+<h4 class="font-label-caps text-[11px] text-on-surface-variant mb-6 uppercase border-b border-white/5 pb-3 font-bold tracking-wider">Network Topology | طوبولوجيا الشبكة</h4>
+<div class="flex-1 flex flex-col justify-around items-center py-6 bg-surface-container-lowest/40 rounded-lg border border-white/5 relative">
+<div class="flex flex-col items-center gap-1">
+<span class="material-symbols-outlined text-on-surface-variant">public</span>
+<span class="text-[10px] font-data-mono text-on-surface-variant uppercase">Internet</span>
+</div>
+<span class="material-symbols-outlined text-cyber-cyan/30 rotate-180">south</span>
+<div class="flex flex-col items-center gap-1 bg-cyber-cyan/10 border border-cyber-cyan/50 p-2 rounded w-36 neon-glow-cyan/20">
+<span class="material-symbols-outlined text-cyber-cyan">verified_user</span>
+<span class="text-[10px] font-data-mono text-cyber-cyan font-bold uppercase">NG-Gateway</span>
+</div>
+<span class="material-symbols-outlined text-cyber-cyan/30 rotate-180">south</span>
+<div class="flex items-center gap-6">
+<div class="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-on-surface-variant">laptop_mac</span>
+<span class="text-[9px] font-label-caps uppercase">Endpoint</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<span class="material-symbols-outlined text-cyber-lime neon-glow-lime">dns</span>
+<span class="text-[9px] font-label-caps text-cyber-lime font-bold uppercase">SRV-Farm</span>
+</div>
+<div class="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-on-surface-variant">wifi</span>
+<span class="text-[9px] font-label-caps uppercase">WLAN</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interaction for hover states on glass-cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px) scale(1.01)';
+                card.style.zIndex = '10';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0) scale(1)';
+                card.style.zIndex = '1';
+            });
+        });
+
+        // Simulating live data update for Actionable Events
+        let eventsCounter = 31;
+        setInterval(() => {
+            if(Math.random() > 0.8) {
+                eventsCounter++;
+                const counterElement = document.querySelector('.text-cyber-magenta.font-headline-lg');
+                if(counterElement) {
+                    counterElement.innerText = eventsCounter;
+                    counterElement.classList.add('scale-125', 'text-white', 'neon-glow-magenta');
+                    setTimeout(() => {
+                        counterElement.classList.remove('scale-125', 'text-white', 'neon-glow-magenta');
+                    }, 800);
+                }
+            }
+        }, 6000);
+    </script>
+</body></html>
