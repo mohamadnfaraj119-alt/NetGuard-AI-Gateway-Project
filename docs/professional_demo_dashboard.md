@@ -34,6 +34,13 @@ v10.2.3 keeps the SOC dashboard as one local `dashboard/index.html` page. The
 sidebar buttons switch in-page panels without page reloads, separate dashboard
 HTML files, anchor scrolling, hash jumps, or scroll movement.
 
+## v10.2.4 True Single-Page Enforcement
+
+v10.2.4 enforces the sidebar as button-only panel navigation. All four
+supervisor-demo sections already exist inside `dashboard/index.html`, and the
+dashboard does not use separate section pages, hash navigation, scroll
+navigation, or document reloads.
+
 ## What The Dashboard Shows
 
 - SOC-style top metric cards for Gateway Status, Risk Level, Actionable Events,

@@ -33,6 +33,29 @@ run_check "V10.2 DASHBOARD LABELS" grep -E \
   "NetGuard-AI Gateway|Attack Classification|Read-only|Final Baseline|SOC Dashboard" \
   dashboard/index.html
 
+echo "=== V10.2.4 TRUE SINGLE-PAGE DASHBOARD NAVIGATION ==="
+if find dashboard -maxdepth 2 -type f \( \
+  -name "overview.html" -o \
+  -name "threats.html" -o \
+  -name "audit.html" -o \
+  -name "audit-evidence.html" -o \
+  -name "gateway.html" -o \
+  -name "gateway-roadmap.html" -o \
+  -name "evidence.html" -o \
+  -name "future.html" -o \
+  -name "roadmap.html" \
+\) -print -quit | grep .; then
+  status=1
+fi
+
+if grep -RInE "overview\.html|threats\.html|audit\.html|audit-evidence\.html|gateway\.html|gateway-roadmap\.html|evidence\.html|future\.html|roadmap\.html|href=[\"']/(overview|threats|audit|gateway|evidence|future|roadmap)|window\.location|location\.href|location\.assign|location\.replace|location\.hash\s*=|history\.pushState|scrollIntoView|window\.scrollTo" dashboard; then
+  status=1
+fi
+
+run_check "V10.2.4 PANEL NAV MARKERS" grep -E \
+  "data-panel-target|data-panel=|dashboard-panel|Gateway & Roadmap|Audit & Evidence" \
+  dashboard/index.html
+
 run_check "POST-TRAINING AUDIT SUMMARY" \
   python3 scripts/post_training_day_audit.py --summary-only
 
