@@ -47,7 +47,6 @@
       color: var(--text);
       font-family: var(--sans);
       line-height: 1.45;
-      scroll-behavior: smooth;
     }
 
     body::before {
@@ -184,25 +183,36 @@
       padding: 22px 0;
     }
 
-    .nav a {
+    .nav button {
       display: grid;
       grid-template-columns: 22px 1fr;
       gap: 12px;
       align-items: center;
+      width: 100%;
+      min-height: auto;
       padding: 13px 22px;
+      border: 0;
       border-right: 3px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
       color: #c1d3d8;
       font-family: var(--mono);
       font-size: 12px;
       font-weight: 800;
+      letter-spacing: 0;
+      text-align: left;
       text-decoration: none;
+      text-transform: none;
     }
 
-    .nav a.active,
-    .nav a:hover {
+    .nav button.active,
+    .nav button:hover,
+    .nav button:focus-visible {
       border-right-color: var(--cyan);
       background: rgba(0, 242, 255, 0.11);
       color: var(--cyan);
+      outline: none;
     }
 
     .nav-icon {
@@ -292,10 +302,6 @@
       padding: 26px 0 34px;
     }
 
-    [id] {
-      scroll-margin-top: 96px;
-    }
-
     .badge-row,
     .metric-row,
     .status-row {
@@ -353,6 +359,15 @@
     .grid {
       display: grid;
       gap: 18px;
+    }
+
+    .dashboard-panel {
+      display: grid;
+      gap: 22px;
+    }
+
+    .dashboard-panel:not(.active-panel) {
+      display: none;
     }
 
     .metrics {
@@ -815,7 +830,7 @@
         padding: 12px;
       }
 
-      .nav a {
+      .nav button {
         border: 1px solid rgba(0, 242, 255, 0.12);
         border-radius: 8px;
         padding: 12px;
@@ -888,12 +903,10 @@
         <div class="side-subtitle">Local read-only SOC view</div>
       </div>
       <nav class="nav">
-        <a class="active" href="#overview" data-section="overview"><span class="nav-icon">01</span><span>Overview</span></a>
-        <a href="#threats" data-section="threats"><span class="nav-icon">02</span><span>Threats</span></a>
-        <a href="#audit" data-section="audit"><span class="nav-icon">03</span><span>Audit</span></a>
-        <a href="#gateway" data-section="gateway"><span class="nav-icon">04</span><span>Gateway</span></a>
-        <a href="#evidence" data-section="evidence"><span class="nav-icon">05</span><span>Evidence</span></a>
-        <a href="#future-work" data-section="future-work"><span class="nav-icon">06</span><span>Future Work</span></a>
+        <button class="active" type="button" data-panel="overview" aria-controls="panel-overview" aria-current="page"><span class="nav-icon">01</span><span>Overview</span></button>
+        <button type="button" data-panel="threats" aria-controls="panel-threats"><span class="nav-icon">02</span><span>Threats</span></button>
+        <button type="button" data-panel="audit-evidence" aria-controls="panel-audit-evidence"><span class="nav-icon">03</span><span>Audit & Evidence</span></button>
+        <button type="button" data-panel="gateway-roadmap" aria-controls="panel-gateway-roadmap"><span class="nav-icon">04</span><span>Gateway & Roadmap</span></button>
       </nav>
       <div class="sidebar-note">
         <strong>Honest Scope</strong>
@@ -919,195 +932,219 @@
       </header>
 
       <main class="content">
-        <section class="grid metrics" id="overview" aria-label="SOC overview metrics">
-          <article class="metric-card info" id="gateway-card">
-            <div class="metric-label">Gateway Status</div>
-            <div class="metric-value" id="gateway-status">Loading</div>
-            <div class="metric-meta" id="gateway-meta">Current live gateway readiness</div>
-          </article>
-          <article class="metric-card warn" id="risk-card">
-            <div class="metric-label">Risk Level</div>
-            <div class="metric-value" id="risk-level">Review</div>
-            <div class="metric-meta" id="risk-meta">Evidence snapshot from saved risk reports.</div>
-          </article>
-          <article class="metric-card purple">
-            <div class="metric-label">Likely Actionable Events</div>
-            <div class="metric-value" id="actionable-events">-</div>
-            <div class="metric-meta">High-confidence non-low-signal events</div>
-          </article>
-          <article class="metric-card info" id="api-card">
-            <div class="metric-label">API Health</div>
-            <div class="metric-value" id="api-health">Pending</div>
-            <div class="metric-meta">GET /healthz, /api/status, /api/demo-summary</div>
-          </article>
-          <article class="metric-card purple">
-            <div class="metric-label">Audit Recommendation</div>
-            <div class="metric-value" id="audit-recommendation">Do not retrain</div>
-            <div class="metric-meta">Post-training audit guardrail</div>
-          </article>
-          <article class="metric-card info">
-            <div class="metric-label">Smoke Test / Verification</div>
-            <div class="metric-value">Manual</div>
-            <div class="metric-meta">Run gateway_status_smoke_test.py</div>
-          </article>
-        </section>
+        <section class="dashboard-panel active-panel" id="panel-overview" data-panel="overview" aria-label="Overview dashboard panel">
+          <section class="grid metrics" aria-label="SOC overview metrics">
+            <article class="metric-card info" id="gateway-card">
+              <div class="metric-label">Gateway Status</div>
+              <div class="metric-value" id="gateway-status">Loading</div>
+              <div class="metric-meta" id="gateway-meta">Current live gateway readiness</div>
+            </article>
+            <article class="metric-card warn" id="risk-card">
+              <div class="metric-label">Risk Level</div>
+              <div class="metric-value" id="risk-level">Review</div>
+              <div class="metric-meta" id="risk-meta">Evidence snapshot from saved risk reports.</div>
+            </article>
+            <article class="metric-card purple">
+              <div class="metric-label">Likely Actionable Events</div>
+              <div class="metric-value" id="actionable-events">-</div>
+              <div class="metric-meta">High-confidence non-low-signal events</div>
+            </article>
+            <article class="metric-card info" id="api-card">
+              <div class="metric-label">API Health</div>
+              <div class="metric-value" id="api-health">Pending</div>
+              <div class="metric-meta">GET /healthz, /api/status, /api/demo-summary</div>
+            </article>
+            <article class="metric-card purple">
+              <div class="metric-label">Audit Recommendation</div>
+              <div class="metric-value" id="audit-recommendation">Do Not Retrain</div>
+              <div class="metric-meta">Post-training audit guardrail</div>
+            </article>
+            <article class="metric-card info">
+              <div class="metric-label">Smoke Test / Verification</div>
+              <div class="metric-value">Manual</div>
+              <div class="metric-meta">Run gateway_status_smoke_test.py</div>
+            </article>
+          </section>
 
-        <section class="panel" aria-label="Active inference pipeline">
-          <div class="panel-header">
-            <h2>Active Inference Pipeline</h2>
-            <span class="chip info"><span class="dot"></span>Visual flow from real project stages</span>
-          </div>
-          <div class="panel-body">
-            <div class="pipeline">
-              <div class="pipeline-step"><span class="pipeline-index">01</span><span class="pipeline-label">Zeek Logs</span><span class="pipeline-detail">local sensor input</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">02</span><span class="pipeline-label">Feature Extraction</span><span class="pipeline-detail">traffic fields</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">03</span><span class="pipeline-label">Window Engine</span><span class="pipeline-detail">30s behavior</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">04</span><span class="pipeline-label">Isolation Forest</span><span class="pipeline-detail">baseline anomaly</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">05</span><span class="pipeline-label">Risk Engine</span><span class="pipeline-detail">0-100 score</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">06</span><span class="pipeline-label">Post-training Audit</span><span class="pipeline-detail">retraining safety</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">07</span><span class="pipeline-label">Attack Classification</span><span class="pipeline-detail">explainable labels</span></div>
-              <div class="pipeline-step"><span class="pipeline-index">08</span><span class="pipeline-label">Dashboard</span><span class="pipeline-detail">read-only display</span></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="grid two-column" id="threats">
-          <section class="panel" aria-label="Threat classification summary">
+          <section class="panel" aria-label="Active inference pipeline">
             <div class="panel-header">
-              <h2>Threat Classification Summary</h2>
-              <span class="chip purple" id="snapshot-date"><span class="dot"></span>Evidence snapshot</span>
+              <h2>Active Inference Pipeline</h2>
+              <span class="chip info"><span class="dot"></span>Visual flow from real project stages</span>
             </div>
             <div class="panel-body">
-              <p class="section-note" id="classification-note">Evidence snapshot from saved risk reports.</p>
-              <div class="threat-list" id="threat-list"></div>
+              <div class="pipeline">
+                <div class="pipeline-step"><span class="pipeline-index">01</span><span class="pipeline-label">Zeek Logs</span><span class="pipeline-detail">local sensor input</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">02</span><span class="pipeline-label">Feature Extraction</span><span class="pipeline-detail">traffic fields</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">03</span><span class="pipeline-label">Window Engine</span><span class="pipeline-detail">30s behavior</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">04</span><span class="pipeline-label">Isolation Forest</span><span class="pipeline-detail">baseline anomaly</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">05</span><span class="pipeline-label">Risk Engine</span><span class="pipeline-detail">0-100 score</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">06</span><span class="pipeline-label">Post-training Audit</span><span class="pipeline-detail">retraining safety</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">07</span><span class="pipeline-label">Attack Classification</span><span class="pipeline-detail">explainable labels</span></div>
+                <div class="pipeline-step"><span class="pipeline-index">08</span><span class="pipeline-label">Dashboard</span><span class="pipeline-detail">read-only display</span></div>
+              </div>
             </div>
           </section>
 
-          <section class="panel" aria-label="Recent classified events table">
-            <div class="panel-header">
-              <h2>Recent Classified Events</h2>
-              <span class="chip info"><span class="dot"></span>Preliminary explainable classification</span>
-            </div>
-            <div class="panel-body">
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Source IP</th>
-                      <th>Attack Type</th>
-                      <th>Confidence</th>
-                      <th>Risk Score</th>
-                      <th>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody id="events-body"></tbody>
-                </table>
+          <section class="grid two-column" aria-label="Overview context">
+            <section class="panel" aria-label="Network topology overview">
+              <div class="panel-header">
+                <h2>Network Topology</h2>
+                <span class="chip info"><span class="dot"></span>Local read-only dashboard</span>
               </div>
-            </div>
-          </section>
-        </section>
-
-        <section class="grid three-column" id="audit">
-          <section class="panel" aria-label="Post-training audit panel">
-            <div class="panel-header">
-              <h2>Post-training Audit</h2>
-              <span class="chip purple"><span class="dot"></span>ML lifecycle guardrail</span>
-            </div>
-            <div class="panel-body">
-              <div class="audit-grid">
-                <div class="mini-card">
-                  <div class="mini-label">Suspicious validation days found</div>
-                  <div class="mini-value" id="suspicious-days">-</div>
-                </div>
-                <div class="mini-card">
-                  <div class="mini-label">Recommendation</div>
-                  <div class="mini-value" id="audit-action">Do not retrain</div>
-                </div>
-                <div class="mini-card">
-                  <div class="mini-label">CANDIDATE_CLEAN count</div>
-                  <div class="mini-value" id="candidate-clean">-</div>
-                </div>
-                <div class="mini-card">
-                  <div class="mini-label">SUSPICIOUS_VALIDATION count</div>
-                  <div class="mini-value" id="suspicious-validation">-</div>
+              <div class="panel-body">
+                <div class="topology">
+                  <div class="topology-line">
+                    <div class="node"><strong>Internet / Router</strong><span>upstream network</span></div>
+                    <div class="connector">-></div>
+                    <div class="node"><strong>NetGuard-AI Gateway</strong><span>Zeek + local analysis</span></div>
+                    <div class="connector">-></div>
+                    <div class="node"><strong>Local Network Devices</strong><span>home or lab clients</span></div>
+                  </div>
                 </div>
               </div>
-              <div class="recommendation" id="audit-copy">Suggested labels are preliminary and do not automatically approve retraining.</div>
-            </div>
-          </section>
-
-          <section class="panel" id="gateway" aria-label="Gateway readiness panel">
-            <div class="panel-header">
-              <h2>System Readiness</h2>
-              <span class="chip info" id="readiness-chip"><span class="dot"></span>Current live gateway readiness</span>
-            </div>
-            <div class="panel-body">
-              <div class="mini-card">
-                <div class="mini-label">Current live gateway environment</div>
-                <div class="mini-value" id="live-environment">Loading</div>
-                <div class="mini-copy" id="live-environment-copy">Saved evidence and dashboard data remain available.</div>
+            </section>
+            <section class="panel" aria-label="Honest dashboard scope">
+              <div class="panel-header">
+                <h2>Dashboard Scope</h2>
+                <span class="chip purple"><span class="dot"></span>Graduation baseline</span>
               </div>
-              <div class="readiness-grid" style="margin-top: 12px;">
-                <div class="mini-card"><div class="mini-label">OK checks</div><div class="mini-value ok" id="ok-count">-</div></div>
-                <div class="mini-card"><div class="mini-label">WARN checks</div><div class="mini-value warn" id="warn-count">-</div></div>
-                <div class="mini-card"><div class="mini-label">FAIL checks</div><div class="mini-value fail" id="fail-count">-</div></div>
-              </div>
-              <div class="check-list" id="readiness-list"></div>
-            </div>
-          </section>
-
-          <section class="panel" aria-label="Network topology card">
-            <div class="panel-header">
-              <h2>Network Topology</h2>
-              <span class="chip info"><span class="dot"></span>Deployment context</span>
-            </div>
-            <div class="panel-body">
-              <div class="topology">
-                <div class="topology-line">
-                  <div class="node"><strong>Internet / Router</strong><span>upstream network</span></div>
-                  <div class="connector">-></div>
-                  <div class="node"><strong>NetGuard-AI Gateway</strong><span>Zeek + local analysis</span></div>
-                  <div class="connector">-></div>
-                  <div class="node"><strong>Local Network Devices</strong><span>home or lab clients</span></div>
+              <div class="panel-body">
+                <p class="section-note">Local read-only dashboard / evidence snapshot. Saved risk reports and current live gateway readiness are presented for supervisor review only.</p>
+                <div class="evidence-grid">
+                  <div class="mini-card"><div class="mini-label">Source</div><div class="mini-value">Saved Evidence</div><div class="mini-copy">Dashboard data remains available when live gateway readiness is NOT READY.</div></div>
+                  <div class="mini-card"><div class="mini-label">Mode</div><div class="mini-value">Read-only</div><div class="mini-copy">No write endpoints, remediation, or automatic prevention.</div></div>
                 </div>
-                <p class="section-note">Full network visibility requires Gateway mode or SPAN/Mirror mode.</p>
               </div>
-            </div>
+            </section>
           </section>
         </section>
 
-        <section class="grid two-column">
-          <section class="panel" id="evidence" aria-label="Evidence and reporting cards">
-            <div class="panel-header">
-              <h2>Evidence / Reporting</h2>
-              <span class="chip info"><span class="dot"></span>Read-only cards</span>
-            </div>
-            <div class="panel-body">
-              <div class="evidence-grid">
-                <div class="mini-card"><div class="mini-label">Final Project Check</div><div class="mini-value">Verify</div><div class="mini-copy">Runs compile, shell, audit, and classification checks.</div></div>
-                <div class="mini-card"><div class="mini-label">Audit Evidence Export</div><div class="mini-value">Optional</div><div class="mini-copy">Explicit operator command; never automatic.</div></div>
-                <div class="mini-card"><div class="mini-label">Classification Evidence Export</div><div class="mini-value">Optional</div><div class="mini-copy">Saved risk report summaries for review.</div></div>
-                <div class="mini-card"><div class="mini-label">Smoke Test</div><div class="mini-value">Local</div><div class="mini-copy">Confirms health, status, dashboard, and rejected writes.</div></div>
+        <section class="dashboard-panel" id="panel-threats" data-panel="threats" aria-label="Threats dashboard panel" hidden>
+          <section class="grid two-column">
+            <section class="panel" aria-label="Threat classification summary">
+              <div class="panel-header">
+                <h2>Threat Classification Summary</h2>
+                <span class="chip purple" id="snapshot-date"><span class="dot"></span>Evidence snapshot</span>
               </div>
-            </div>
-          </section>
+              <div class="panel-body">
+                <p class="section-note" id="classification-note">Preliminary explainable classification based on saved evidence snapshot.</p>
+                <div class="threat-list" id="threat-list"></div>
+              </div>
+            </section>
 
-          <section class="panel" id="future-work" aria-label="Future productization panel">
-            <div class="panel-header">
-              <h2>Future Productization</h2>
-              <span class="chip purple"><span class="dot"></span>Not part of this sprint</span>
-            </div>
-            <div class="panel-body">
-              <div class="future-grid">
-                <div class="mini-card"><div class="mini-label">Grafana monitoring</div><div class="mini-copy">Future operational dashboards after durable metrics storage.</div></div>
-                <div class="mini-card"><div class="mini-label">Telegram alerts</div><div class="mini-copy">Future notification channel after alert policy review.</div></div>
-                <div class="mini-card"><div class="mini-label">Multi-sensor support</div><div class="mini-copy">Future coverage for multiple network observation points.</div></div>
-                <div class="mini-card"><div class="mini-label">Kafka streaming pipeline</div><div class="mini-copy">Future event transport for larger deployments.</div></div>
-                <div class="mini-card"><div class="mini-label">Reviewed-label classifier</div><div class="mini-copy">ML attack classifier after trusted analyst labels exist.</div></div>
-                <div class="mini-card"><div class="mini-label">Product packaging</div><div class="mini-copy">Installer, hardening, and operator guidance.</div></div>
+            <section class="panel" aria-label="Recent classified events table">
+              <div class="panel-header">
+                <h2>Recent Classified Events</h2>
+                <span class="chip info"><span class="dot"></span>Preliminary explainable classification</span>
               </div>
-            </div>
+              <div class="panel-body">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Source IP</th>
+                        <th>Attack Type</th>
+                        <th>Confidence</th>
+                        <th>Risk Score</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody id="events-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section class="dashboard-panel" id="panel-audit-evidence" data-panel="audit-evidence" aria-label="Audit and Evidence dashboard panel" hidden>
+          <section class="grid two-column">
+            <section class="panel" aria-label="Post-training audit panel">
+              <div class="panel-header">
+                <h2>Post-training Audit</h2>
+                <span class="chip purple"><span class="dot"></span>ML lifecycle guardrail</span>
+              </div>
+              <div class="panel-body">
+                <div class="audit-grid">
+                  <div class="mini-card">
+                    <div class="mini-label">Suspicious validation days found</div>
+                    <div class="mini-value" id="suspicious-days">-</div>
+                  </div>
+                  <div class="mini-card">
+                    <div class="mini-label">Recommendation</div>
+                    <div class="mini-value" id="audit-action">Do Not Retrain</div>
+                  </div>
+                  <div class="mini-card">
+                    <div class="mini-label">CANDIDATE_CLEAN count</div>
+                    <div class="mini-value" id="candidate-clean">-</div>
+                  </div>
+                  <div class="mini-card">
+                    <div class="mini-label">SUSPICIOUS_VALIDATION count</div>
+                    <div class="mini-value" id="suspicious-validation">-</div>
+                  </div>
+                </div>
+                <div class="recommendation" id="audit-copy">Audit prevents unsafe retraining on suspicious days.</div>
+              </div>
+            </section>
+
+            <section class="panel" aria-label="Evidence and reporting cards">
+              <div class="panel-header">
+                <h2>Evidence / Reporting</h2>
+                <span class="chip info"><span class="dot"></span>Read-only cards</span>
+              </div>
+              <div class="panel-body">
+                <p class="section-note">Audit prevents unsafe retraining on suspicious days. Evidence exports are explicit operator actions, not dashboard writes.</p>
+                <div class="evidence-grid">
+                  <div class="mini-card"><div class="mini-label">Final Project Check</div><div class="mini-value">Verify</div><div class="mini-copy">Runs compile, shell, audit, and classification checks.</div></div>
+                  <div class="mini-card"><div class="mini-label">Smoke Test</div><div class="mini-value">Local</div><div class="mini-copy">Confirms health, status, dashboard, and rejected writes.</div></div>
+                  <div class="mini-card"><div class="mini-label">Audit Evidence Export</div><div class="mini-value">Optional</div><div class="mini-copy">Explicit operator command; never automatic.</div></div>
+                  <div class="mini-card"><div class="mini-label">Classification Evidence Export</div><div class="mini-value">Optional</div><div class="mini-copy">Saved risk report summaries for review.</div></div>
+                </div>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section class="dashboard-panel" id="panel-gateway-roadmap" data-panel="gateway-roadmap" aria-label="Gateway and Roadmap dashboard panel" hidden>
+          <section class="grid two-column">
+            <section class="panel" aria-label="Gateway readiness panel">
+              <div class="panel-header">
+                <h2>System Readiness</h2>
+                <span class="chip info" id="readiness-chip"><span class="dot"></span>Current live gateway readiness</span>
+              </div>
+              <div class="panel-body">
+                <div class="mini-card">
+                  <div class="mini-label">Current live gateway environment</div>
+                  <div class="mini-value" id="live-environment">Loading</div>
+                  <div class="mini-copy" id="live-environment-copy">Saved evidence and dashboard data remain available.</div>
+                </div>
+                <div class="readiness-grid" style="margin-top: 12px;">
+                  <div class="mini-card"><div class="mini-label">OK checks</div><div class="mini-value ok" id="ok-count">-</div></div>
+                  <div class="mini-card"><div class="mini-label">WARN checks</div><div class="mini-value warn" id="warn-count">-</div></div>
+                  <div class="mini-card"><div class="mini-label">FAIL checks</div><div class="mini-value fail" id="fail-count">-</div></div>
+                </div>
+                <p class="section-note" style="margin-top: 14px;">Full network visibility requires Gateway mode or SPAN/Mirror mode.</p>
+                <div class="check-list" id="readiness-list"></div>
+              </div>
+            </section>
+
+            <section class="panel" aria-label="Future productization panel">
+              <div class="panel-header">
+                <h2>Future Productization</h2>
+                <span class="chip purple"><span class="dot"></span>Not part of this sprint</span>
+              </div>
+              <div class="panel-body">
+                <div class="future-grid">
+                  <div class="mini-card"><div class="mini-label">Grafana monitoring</div><div class="mini-copy">Future operational dashboards after durable metrics storage.</div></div>
+                  <div class="mini-card"><div class="mini-label">Telegram alerts</div><div class="mini-copy">Future notification channel after alert policy review.</div></div>
+                  <div class="mini-card"><div class="mini-label">Multi-sensor support</div><div class="mini-copy">Future coverage for multiple network observation points.</div></div>
+                  <div class="mini-card"><div class="mini-label">Kafka streaming pipeline</div><div class="mini-copy">Future event transport for larger deployments.</div></div>
+                  <div class="mini-card"><div class="mini-label">Reviewed-label classifier</div><div class="mini-copy">ML attack classifier after trusted analyst labels exist.</div></div>
+                  <div class="mini-card"><div class="mini-label">Product packaging</div><div class="mini-copy">Installer, hardening, and operator guidance.</div></div>
+                </div>
+              </div>
+            </section>
           </section>
         </section>
 
@@ -1167,7 +1204,8 @@
     };
 
     const refreshButton = document.getElementById("refresh");
-    const navLinks = Array.from(document.querySelectorAll(".nav a[data-section]"));
+    const navButtons = Array.from(document.querySelectorAll(".nav button[data-panel]"));
+    const dashboardPanels = Array.from(document.querySelectorAll(".dashboard-panel[data-panel]"));
     const updated = document.getElementById("updated");
     const gatewayCard = document.getElementById("gateway-card");
     const gatewayStatus = document.getElementById("gateway-status");
@@ -1200,22 +1238,30 @@
       element.textContent = value;
     }
 
-    function setActiveSection(sectionId) {
-      for (const link of navLinks) {
-        link.classList.toggle("active", link.dataset.section === sectionId);
+    function setActivePanel(panelName) {
+      for (const button of navButtons) {
+        const isActive = button.dataset.panel === panelName;
+        button.classList.toggle("active", isActive);
+        if (isActive) {
+          button.setAttribute("aria-current", "page");
+        } else {
+          button.removeAttribute("aria-current");
+        }
+      }
+      for (const panel of dashboardPanels) {
+        const isActive = panel.dataset.panel === panelName;
+        panel.classList.toggle("active-panel", isActive);
+        panel.hidden = !isActive;
       }
     }
 
-    function navigateToSection(sectionId, updateHash = true, behavior = "smooth") {
-      const target = document.getElementById(sectionId);
-      if (!target) {
-        return;
-      }
-      target.scrollIntoView({behavior, block: "start"});
-      setActiveSection(sectionId);
-      if (updateHash) {
-        history.pushState(null, "", `#${sectionId}`);
-      }
+    function showPanel(panelName) {
+      const panelExists = dashboardPanels.some((panel) => panel.dataset.panel === panelName);
+      setActivePanel(panelExists ? panelName : "overview");
+    }
+
+    function switchPanel(panelName) {
+      showPanel(panelName);
     }
 
     function cardState(element, state) {
@@ -1488,40 +1534,27 @@
       refreshButton.disabled = false;
     }
 
-    for (const link of navLinks) {
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        navigateToSection(link.dataset.section);
-      });
-    }
+    const initialPanelMap = {
+      "#overview": "overview",
+      "#threats": "threats",
+      "#audit": "audit-evidence",
+      "#evidence": "audit-evidence",
+      "#audit-evidence": "audit-evidence",
+      "#gateway": "gateway-roadmap",
+      "#future-work": "gateway-roadmap",
+      "#gateway-roadmap": "gateway-roadmap"
+    };
 
-    if ("IntersectionObserver" in window) {
-      const observedSections = navLinks
-        .map((link) => document.getElementById(link.dataset.section))
-        .filter(Boolean);
-      const observer = new IntersectionObserver((entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) {
-          setActiveSection(visible.target.id);
-        }
-      }, {
-        root: null,
-        rootMargin: "-20% 0px -55% 0px",
-        threshold: [0.12, 0.25, 0.5]
+    for (const button of navButtons) {
+      button.addEventListener("click", () => {
+        switchPanel(button.dataset.panel);
       });
-      for (const section of observedSections) {
-        observer.observe(section);
-      }
     }
 
     refreshButton.addEventListener("click", refreshDashboard);
+    switchPanel(initialPanelMap[window.location.hash] || "overview");
     refreshDashboard().then(() => {
-      const initialSection = window.location.hash.replace("#", "");
-      if (initialSection && document.getElementById(initialSection)) {
-        setTimeout(() => navigateToSection(initialSection, false, "auto"), 50);
-      }
+      switchPanel(initialPanelMap[window.location.hash] || document.querySelector(".dashboard-panel.active-panel")?.dataset.panel || "overview");
     });
   </script>
 </body>
