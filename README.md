@@ -103,6 +103,10 @@ v10.2.3 confirms the dashboard remains a single local `dashboard/index.html`
 page with button-driven in-page panel switching and no separate dashboard page
 navigation.
 
+v10.2.4 enforces that same true single-page behavior with strict sidebar button
+targets, in-DOM dashboard panels, and no hash, scroll, reload, or page-link
+navigation.
+
 ## Quick Start
 
 ```bash
