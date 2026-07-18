@@ -99,6 +99,10 @@ v10.2.2 polishes the SOC dashboard navigation into four stable supervisor-demo
 sections: Overview, Threats, Audit & Evidence, and Gateway & Roadmap. Sidebar
 clicks switch panels without scroll jumps.
 
+v10.2.3 confirms the dashboard remains a single local `dashboard/index.html`
+page with button-driven in-page panel switching and no separate dashboard page
+navigation.
+
 ## Quick Start
 
 ```bash
