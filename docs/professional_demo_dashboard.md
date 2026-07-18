@@ -28,6 +28,12 @@ Overview, Threats, Audit & Evidence, and Gateway & Roadmap. The sidebar now
 uses stable dashboard panel switching and no longer uses jumpy scroll
 navigation.
 
+## v10.2.3 Single-Page Navigation Fix
+
+v10.2.3 keeps the SOC dashboard as one local `dashboard/index.html` page. The
+sidebar buttons switch in-page panels without page reloads, separate dashboard
+HTML files, anchor scrolling, hash jumps, or scroll movement.
+
 ## What The Dashboard Shows
 
 - SOC-style top metric cards for Gateway Status, Risk Level, Actionable Events,

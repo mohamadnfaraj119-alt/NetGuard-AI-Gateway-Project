@@ -932,7 +932,7 @@
       </header>
 
       <main class="content">
-        <section class="dashboard-panel active-panel" id="panel-overview" data-panel="overview" aria-label="Overview dashboard panel">
+        <section class="dashboard-panel active-panel" id="panel-overview" data-panel-content="overview" aria-label="Overview dashboard panel">
           <section class="grid metrics" aria-label="SOC overview metrics">
             <article class="metric-card info" id="gateway-card">
               <div class="metric-label">Gateway Status</div>
@@ -1019,7 +1019,7 @@
           </section>
         </section>
 
-        <section class="dashboard-panel" id="panel-threats" data-panel="threats" aria-label="Threats dashboard panel" hidden>
+        <section class="dashboard-panel" id="panel-threats" data-panel-content="threats" aria-label="Threats dashboard panel" hidden>
           <section class="grid two-column">
             <section class="panel" aria-label="Threat classification summary">
               <div class="panel-header">
@@ -1058,7 +1058,7 @@
           </section>
         </section>
 
-        <section class="dashboard-panel" id="panel-audit-evidence" data-panel="audit-evidence" aria-label="Audit and Evidence dashboard panel" hidden>
+        <section class="dashboard-panel" id="panel-audit-evidence" data-panel-content="audit-evidence" aria-label="Audit and Evidence dashboard panel" hidden>
           <section class="grid two-column">
             <section class="panel" aria-label="Post-training audit panel">
               <div class="panel-header">
@@ -1106,7 +1106,7 @@
           </section>
         </section>
 
-        <section class="dashboard-panel" id="panel-gateway-roadmap" data-panel="gateway-roadmap" aria-label="Gateway and Roadmap dashboard panel" hidden>
+        <section class="dashboard-panel" id="panel-gateway-roadmap" data-panel-content="gateway-roadmap" aria-label="Gateway and Roadmap dashboard panel" hidden>
           <section class="grid two-column">
             <section class="panel" aria-label="Gateway readiness panel">
               <div class="panel-header">
@@ -1205,7 +1205,7 @@
 
     const refreshButton = document.getElementById("refresh");
     const navButtons = Array.from(document.querySelectorAll(".nav button[data-panel]"));
-    const dashboardPanels = Array.from(document.querySelectorAll(".dashboard-panel[data-panel]"));
+    const dashboardPanels = Array.from(document.querySelectorAll(".dashboard-panel[data-panel-content]"));
     const updated = document.getElementById("updated");
     const gatewayCard = document.getElementById("gateway-card");
     const gatewayStatus = document.getElementById("gateway-status");
@@ -1249,14 +1249,14 @@
         }
       }
       for (const panel of dashboardPanels) {
-        const isActive = panel.dataset.panel === panelName;
+        const isActive = panel.dataset.panelContent === panelName;
         panel.classList.toggle("active-panel", isActive);
         panel.hidden = !isActive;
       }
     }
 
     function showPanel(panelName) {
-      const panelExists = dashboardPanels.some((panel) => panel.dataset.panel === panelName);
+      const panelExists = dashboardPanels.some((panel) => panel.dataset.panelContent === panelName);
       setActivePanel(panelExists ? panelName : "overview");
     }
 
@@ -1534,27 +1534,17 @@
       refreshButton.disabled = false;
     }
 
-    const initialPanelMap = {
-      "#overview": "overview",
-      "#threats": "threats",
-      "#audit": "audit-evidence",
-      "#evidence": "audit-evidence",
-      "#audit-evidence": "audit-evidence",
-      "#gateway": "gateway-roadmap",
-      "#future-work": "gateway-roadmap",
-      "#gateway-roadmap": "gateway-roadmap"
-    };
-
     for (const button of navButtons) {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
         switchPanel(button.dataset.panel);
       });
     }
 
     refreshButton.addEventListener("click", refreshDashboard);
-    switchPanel(initialPanelMap[window.location.hash] || "overview");
+    switchPanel("overview");
     refreshDashboard().then(() => {
-      switchPanel(initialPanelMap[window.location.hash] || document.querySelector(".dashboard-panel.active-panel")?.dataset.panel || "overview");
+      switchPanel(document.querySelector(".dashboard-panel.active-panel")?.dataset.panelContent || "overview");
     });
   </script>
 </body>
