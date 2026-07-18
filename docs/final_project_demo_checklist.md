@@ -32,12 +32,10 @@ http://127.0.0.1:8787/
 Show:
 
 - Live status.
-- Full SOC dashboard overview.
-- Threat classification section.
-- Audit/retraining panel.
-- Gateway readiness panel.
-- Top classified events table.
-- Network topology card.
+- Overview.
+- Threats.
+- Audit & Evidence.
+- Gateway & Roadmap.
 
 Run smoke test:
 
@@ -126,15 +124,12 @@ not commit generated export files.
 - Git status clean.
 - Final release link.
 - v10.0 final project check passed.
-- Dashboard live status.
-- Full SOC dashboard overview.
-- Threat classification section.
-- Audit/retraining panel.
-- Gateway readiness panel.
-- Top classified events table.
-- Network topology card.
+- Overview.
+- Threats.
+- Audit & Evidence.
+- Gateway & Roadmap.
 - Final project check passed.
-- Smoke test passed.
+- Smoke test output.
 - Post-training audit output.
 - Attack classification summary.
 - Audit evidence export output.

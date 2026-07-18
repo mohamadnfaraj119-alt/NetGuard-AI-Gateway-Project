@@ -95,6 +95,10 @@ offline-capable, browser-native HTML/CSS/JS, and does not change detection
 logic, risk scoring, models, thresholds, training, Zeek configuration,
 firewall, services, or data.
 
+v10.2.2 polishes the SOC dashboard navigation into four stable supervisor-demo
+sections: Overview, Threats, Audit & Evidence, and Gateway & Roadmap. Sidebar
+clicks switch panels without scroll jumps.
+
 ## Quick Start
 
 ```bash

@@ -21,12 +21,19 @@ This is presentation layer only. It does not change the core IDS logic,
 thresholds, risk scoring, training, model files, audit logic, attack
 classification logic, Zeek configuration, firewall rules, services, or data.
 
+## v10.2.2 Navigation Polish
+
+v10.2.2 polishes the dashboard navigation into four supervisor-demo sections:
+Overview, Threats, Audit & Evidence, and Gateway & Roadmap. The sidebar now
+uses stable dashboard panel switching and no longer uses jumpy scroll
+navigation.
+
 ## What The Dashboard Shows
 
 - SOC-style top metric cards for Gateway Status, Risk Level, Actionable Events,
   API Health, Audit Recommendation, and Smoke Test / Verification.
-- Sidebar navigation for Overview, Threats, Audit, Gateway, Evidence, and
-  Future Work.
+- Sidebar navigation for Overview, Threats, Audit & Evidence, and Gateway &
+  Roadmap.
 - Active inference pipeline from Zeek Logs through Dashboard presentation.
 - Post-training audit status and retraining recommendation.
 - Attack Classification summary for the saved evidence snapshot.
@@ -83,14 +90,11 @@ Stop the dashboard with `Ctrl+C`.
 
 ## Screenshots To Capture
 
-- Full SOC dashboard overview.
-- Threat classification section.
-- Audit/retraining panel.
-- Gateway readiness panel.
-- Top classified events table.
-- Network topology card.
-- Evidence/reporting cards.
-- Smoke test passed output.
+- Overview.
+- Threats.
+- Audit & Evidence.
+- Gateway & Roadmap.
+- Smoke test output.
 
 ## Limitations
 
