@@ -19,6 +19,9 @@ baseline. It improves how the project is shown to a supervisor, but the
 detection logic, risk scoring, models, thresholds, and classification logic
 remain the stable v10.0 baseline."
 
+"The v10.2 dashboard is a professional visualization layer. It does not change
+the core IDS logic; it makes the results easier to understand and present."
+
 ## 3. Final Project Check
 
 Run:
@@ -80,8 +83,8 @@ Say:
 
 "The dashboard is local and read-only. It shows gateway readiness, audit and
 retraining recommendation, a saved Attack Classification evidence snapshot, and
-demo states without making firewall, service, model, training, or system
-changes."
+SOC-style evidence panels without making firewall, service, model, training, or
+system changes."
 
 "The classification view is based on saved evidence. It is preliminary and
 explainable, not guaranteed ground truth or a claim of real-time attack

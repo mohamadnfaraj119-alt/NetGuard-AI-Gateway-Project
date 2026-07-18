@@ -3,30 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NetGuard-AI Gateway Demo Dashboard</title>
+  <title>NetGuard-AI Gateway | SOC Dashboard</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #060b10;
-      --surface: #0d151b;
-      --surface-2: #121d25;
-      --surface-3: #172631;
-      --line: #243945;
-      --line-strong: #385766;
-      --text: #eef7f7;
-      --muted: #9ab0b9;
-      --quiet: #6f8792;
-      --green: #35d49d;
-      --amber: #f3c64e;
-      --red: #ff6f7d;
-      --blue: #56b6f0;
-      --violet: #a990ff;
-      --green-soft: rgba(53, 212, 157, 0.13);
-      --amber-soft: rgba(243, 198, 78, 0.15);
-      --red-soft: rgba(255, 111, 125, 0.15);
-      --blue-soft: rgba(86, 182, 240, 0.13);
-      --violet-soft: rgba(169, 144, 255, 0.13);
-      --shadow: 0 22px 48px rgba(0, 0, 0, 0.32);
+      --bg: #05070a;
+      --bg-2: #090d12;
+      --panel: rgba(17, 22, 29, 0.82);
+      --panel-2: rgba(20, 27, 36, 0.72);
+      --panel-3: rgba(9, 13, 18, 0.86);
+      --line: rgba(0, 242, 255, 0.16);
+      --line-strong: rgba(0, 242, 255, 0.38);
+      --text: #e8f6f8;
+      --muted: #98aeb7;
+      --quiet: #708894;
+      --cyan: #00f2ff;
+      --blue: #57a8ff;
+      --green: #39ff14;
+      --amber: #f4c84f;
+      --red: #ff5d73;
+      --purple: #c026ff;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * {
@@ -41,18 +40,35 @@
       margin: 0;
       min-height: 100vh;
       background:
-        linear-gradient(180deg, rgba(86, 182, 240, 0.09), transparent 320px),
-        linear-gradient(135deg, rgba(53, 212, 157, 0.06), transparent 42%),
+        radial-gradient(circle at 72% 8%, rgba(0, 242, 255, 0.12), transparent 30%),
+        radial-gradient(circle at 16% 18%, rgba(192, 38, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(0, 242, 255, 0.05), transparent 340px),
         var(--bg);
       color: var(--text);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: var(--sans);
       line-height: 1.45;
     }
 
-    main {
-      width: min(1360px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 22px 0 26px;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background-image:
+        linear-gradient(rgba(0, 242, 255, 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 242, 255, 0.028) 1px, transparent 1px),
+        radial-gradient(rgba(0, 242, 255, 0.06) 1px, transparent 1px);
+      background-size: 48px 48px, 48px 48px, 18px 18px;
+      mask-image: linear-gradient(180deg, black, rgba(0, 0, 0, 0.78));
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(5, 7, 10, 0.88), transparent 34%, rgba(5, 7, 10, 0.54));
     }
 
     h1,
@@ -62,108 +78,25 @@
       margin: 0;
     }
 
-    .shell {
-      display: grid;
-      gap: 16px;
-    }
-
-    .topbar,
-    .hero,
-    .panel,
-    .card,
-    .notice {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent), var(--surface);
-      box-shadow: var(--shadow);
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 14px 16px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .brand-mark {
-      position: relative;
-      width: 38px;
-      height: 38px;
-      border: 1px solid rgba(86, 182, 240, 0.58);
-      border-radius: 8px;
-      background: linear-gradient(135deg, rgba(86, 182, 240, 0.28), rgba(53, 212, 157, 0.12));
-      flex: 0 0 auto;
-    }
-
-    .brand-mark::before {
-      content: "";
-      position: absolute;
-      left: 11px;
-      right: 11px;
-      top: 8px;
-      height: 13px;
-      border: 2px solid var(--blue);
-      border-bottom: 0;
-      border-radius: 12px 12px 0 0;
-    }
-
-    .brand-mark::after {
-      content: "";
-      position: absolute;
-      left: 9px;
-      right: 9px;
-      bottom: 8px;
-      height: 15px;
-      border: 2px solid var(--green);
-      border-radius: 4px;
-    }
-
-    .eyebrow {
-      color: var(--quiet);
-      font-size: 12px;
-      font-weight: 760;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      margin-top: 2px;
-      font-size: 19px;
-      font-weight: 820;
-      overflow-wrap: anywhere;
-    }
-
-    .actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
     button {
-      border: 1px solid #2a7ca0;
-      border-radius: 6px;
-      background: #0d5b75;
-      color: #f3fbff;
+      min-height: 38px;
+      border: 1px solid rgba(0, 242, 255, 0.42);
+      border-radius: 7px;
+      background: rgba(0, 242, 255, 0.11);
+      color: var(--cyan);
       cursor: pointer;
       font: inherit;
-      font-size: 13px;
-      font-weight: 760;
-      min-width: 96px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
       padding: 9px 13px;
+      text-transform: uppercase;
+      box-shadow: 0 0 18px rgba(0, 242, 255, 0.12);
     }
 
     button:hover {
-      background: #117091;
+      background: rgba(0, 242, 255, 0.18);
+      border-color: rgba(0, 242, 255, 0.72);
     }
 
     button:disabled {
@@ -171,336 +104,446 @@
       opacity: 0.62;
     }
 
-    .mode-switch {
-      display: inline-flex;
-      gap: 4px;
-      padding: 4px;
-      border: 1px solid var(--line);
+    .layout {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      border-right: 1px solid rgba(0, 242, 255, 0.14);
+      background: rgba(4, 7, 11, 0.86);
+      backdrop-filter: blur(18px);
+      box-shadow: inset -1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .side-brand {
+      padding: 22px 22px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 46px;
+      height: 46px;
+      border: 1px solid rgba(0, 242, 255, 0.58);
       border-radius: 8px;
-      background: rgba(6, 11, 16, 0.5);
+      background: linear-gradient(135deg, rgba(0, 242, 255, 0.24), rgba(57, 255, 20, 0.08));
+      box-shadow: 0 0 24px rgba(0, 242, 255, 0.22);
+      margin-bottom: 16px;
     }
 
-    .mode-button {
-      min-width: auto;
-      border-color: transparent;
-      background: transparent;
+    .brand-mark::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: 9px;
+      height: 14px;
+      border: 2px solid var(--cyan);
+      border-bottom: 0;
+      border-radius: 14px 14px 0 0;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      left: 11px;
+      right: 11px;
+      bottom: 9px;
+      height: 17px;
+      border: 2px solid var(--green);
+      border-radius: 4px;
+    }
+
+    .side-title {
+      color: var(--cyan);
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .side-subtitle {
+      margin-top: 4px;
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 3px;
+      padding: 22px 0;
+    }
+
+    .nav a {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 22px;
+      border-right: 3px solid transparent;
+      color: #c1d3d8;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .nav a.active,
+    .nav a:hover {
+      border-right-color: var(--cyan);
+      background: rgba(0, 242, 255, 0.11);
+      color: var(--cyan);
+    }
+
+    .nav-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border: 1px solid currentColor;
+      border-radius: 5px;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .sidebar-note {
+      margin-top: auto;
+      padding: 18px 22px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.055);
+      color: var(--quiet);
+      font-size: 12px;
+    }
+
+    .sidebar-note strong {
+      display: block;
+      color: var(--purple);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .workspace {
+      min-width: 0;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 72px;
+      padding: 14px 28px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(6, 9, 13, 0.88);
+      backdrop-filter: blur(18px);
+    }
+
+    .header-copy {
+      min-width: 0;
+    }
+
+    .header-copy h1 {
+      color: var(--cyan);
+      font-size: clamp(20px, 2vw, 29px);
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .header-copy p {
+      margin-top: 3px;
       color: var(--muted);
-      padding: 7px 10px;
+      font-size: 13px;
     }
 
-    .mode-button:hover,
-    .mode-button.active {
-      border-color: rgba(86, 182, 240, 0.45);
-      background: var(--blue-soft);
-      color: var(--text);
+    .top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .timestamp {
       color: var(--muted);
-      font-size: 13px;
+      font-family: var(--mono);
+      font-size: 12px;
       white-space: nowrap;
     }
 
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-      gap: 18px;
-      align-items: stretch;
-      padding: 24px;
-      background:
-        linear-gradient(120deg, rgba(86, 182, 240, 0.13), transparent 45%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
-        var(--surface);
+    .content {
+      width: min(1480px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 26px 0 34px;
     }
 
-    .hero-title {
-      margin-top: 8px;
-      font-size: clamp(30px, 4vw, 50px);
-      line-height: 1.04;
-      font-weight: 850;
-      letter-spacing: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .hero-copy {
-      margin-top: 12px;
-      max-width: 820px;
-      color: var(--muted);
-      font-size: 15px;
-    }
-
-    .hero-aside {
-      display: grid;
-      align-content: start;
-      gap: 10px;
-    }
-
-    .badge-row {
+    .badge-row,
+    .metric-row,
+    .status-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
 
-    .pill,
-    .metric-pill {
+    .badge,
+    .chip {
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      min-height: 28px;
       border: 1px solid currentColor;
       border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 12px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 11px;
       font-weight: 800;
+      padding: 5px 10px;
       white-space: nowrap;
     }
 
     .dot {
-      width: 9px;
-      height: 9px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: currentColor;
       box-shadow: 0 0 14px currentColor;
       flex: 0 0 auto;
     }
 
-    .OK {
+    .ok {
       color: var(--green);
-      background: var(--green-soft);
     }
 
-    .WARN {
+    .warn {
       color: var(--amber);
-      background: var(--amber-soft);
     }
 
-    .FAIL {
+    .fail {
       color: var(--red);
-      background: var(--red-soft);
     }
 
-    .INFO,
-    .UNKNOWN {
-      color: var(--blue);
-      background: var(--blue-soft);
+    .info {
+      color: var(--cyan);
     }
 
-    .VIOLET {
-      color: var(--violet);
-      background: var(--violet-soft);
-    }
-
-    .notice {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 14px 16px;
-      color: #ffe9a8;
-      border-color: rgba(243, 198, 78, 0.45);
-      background: linear-gradient(180deg, rgba(243, 198, 78, 0.12), rgba(243, 198, 78, 0.05)), var(--surface);
-    }
-
-    .notice strong {
-      display: block;
-      color: #fff3c9;
-      margin-bottom: 2px;
-    }
-
-    .notice p {
-      color: #dcc783;
-      font-size: 14px;
+    .purple {
+      color: var(--purple);
     }
 
     .grid {
       display: grid;
-      gap: 14px;
+      gap: 18px;
     }
 
-    .overview-grid {
+    .metrics {
       grid-template-columns: repeat(6, minmax(0, 1fr));
+      margin-bottom: 22px;
     }
 
     .two-column {
-      grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      margin-top: 22px;
     }
 
     .three-column {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 22px;
     }
 
-    .card {
-      min-height: 124px;
-      padding: 16px;
+    .panel,
+    .metric-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.045), transparent 38%),
+        var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
     }
 
-    .card-label {
+    .panel::before,
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background: linear-gradient(135deg, rgba(0, 242, 255, 0.16), transparent 24%, rgba(192, 38, 255, 0.06));
+      opacity: 0.52;
+    }
+
+    .metric-card {
+      min-height: 132px;
+      padding: 17px;
+    }
+
+    .metric-card > *,
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric-label {
       color: var(--quiet);
-      font-size: 12px;
-      font-weight: 780;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
     }
 
-    .card-value {
-      margin-top: 11px;
-      font-size: 28px;
-      font-weight: 840;
+    .metric-value {
+      margin-top: 14px;
+      color: var(--text);
+      font-size: clamp(22px, 2.1vw, 31px);
+      font-weight: 900;
+      line-height: 1.08;
       overflow-wrap: anywhere;
     }
 
-    .card-meta {
-      margin-top: 8px;
+    .metric-meta {
+      margin-top: 9px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
     }
 
-    .section-title {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 14px;
-      margin: 6px 0 0;
+    .metric-card.ok {
+      border-left: 4px solid var(--green);
     }
 
-    .section-title h2 {
-      font-size: 20px;
-      font-weight: 800;
+    .metric-card.warn {
+      border-left: 4px solid var(--amber);
     }
 
-    .section-title p {
-      color: var(--muted);
-      font-size: 13px;
+    .metric-card.fail {
+      border-left: 4px solid var(--red);
     }
 
-    .panel {
-      overflow: hidden;
+    .metric-card.info {
+      border-left: 4px solid var(--cyan);
+    }
+
+    .metric-card.purple {
+      border-left: 4px solid var(--purple);
     }
 
     .panel-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--line);
-      background: var(--surface-2);
+      gap: 14px;
+      min-height: 58px;
+      padding: 15px 18px;
+      border-bottom: 1px solid rgba(0, 242, 255, 0.11);
+      background: rgba(6, 9, 13, 0.42);
     }
 
+    .panel-header h2,
     .panel-header h3 {
-      font-size: 15px;
-      font-weight: 790;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .panel-body {
-      padding: 16px;
+      padding: 18px;
     }
 
     .pipeline {
       display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
     }
 
     .pipeline-step {
-      min-height: 74px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.025);
-      padding: 10px;
+      position: relative;
+      min-height: 106px;
       display: grid;
       align-content: space-between;
+      gap: 12px;
+      border: 1px solid rgba(0, 242, 255, 0.22);
+      border-radius: 8px;
+      background: rgba(5, 11, 17, 0.78);
+      padding: 13px;
+    }
+
+    .pipeline-step:not(:last-child)::after {
+      content: "->";
+      position: absolute;
+      top: 42px;
+      right: -12px;
+      z-index: 3;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-weight: 900;
+      text-shadow: 0 0 12px rgba(0, 242, 255, 0.8);
     }
 
     .pipeline-index {
-      color: var(--blue);
+      color: var(--cyan);
+      font-family: var(--mono);
       font-size: 12px;
-      font-weight: 820;
+      font-weight: 900;
     }
 
     .pipeline-label {
-      color: #dcebee;
+      color: #dff7fb;
       font-size: 13px;
-      font-weight: 760;
+      font-weight: 800;
       overflow-wrap: anywhere;
     }
 
-    .checks {
-      display: grid;
+    .pipeline-detail {
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
     }
 
-    .check {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 10px;
-      align-items: start;
-      padding: 13px 16px;
-      border-top: 1px solid rgba(36, 57, 69, 0.7);
-    }
-
-    .check:first-child {
-      border-top: 0;
-    }
-
-    .check-message {
-      color: #dcebee;
-      font-size: 14px;
-      overflow-wrap: anywhere;
-    }
-
-    .empty {
-      padding: 16px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .empty-title {
-      color: var(--text);
-      font-weight: 760;
-      margin-bottom: 4px;
-    }
-
-    .insight-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .insight {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 10px;
-      align-items: start;
-      border: 1px solid rgba(36, 57, 69, 0.74);
-      border-radius: 8px;
-      padding: 11px;
-      background: rgba(255, 255, 255, 0.022);
-    }
-
-    .insight-title {
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 780;
-    }
-
-    .insight-copy {
+    .section-note {
       color: var(--muted);
       font-size: 13px;
-      margin-top: 2px;
+      margin-bottom: 14px;
     }
 
-    .classification-grid {
+    .threat-list {
       display: grid;
-      gap: 10px;
-    }
-
-    .attack-row {
-      display: grid;
-      grid-template-columns: minmax(180px, 1fr) minmax(0, 1.6fr) 58px;
-      align-items: center;
       gap: 12px;
     }
 
-    .attack-name {
-      color: #ddebee;
-      font-size: 13px;
-      font-weight: 760;
+    .threat-row {
+      display: grid;
+      grid-template-columns: minmax(230px, 1.1fr) minmax(90px, 0.9fr) 64px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .threat-name {
+      color: #e7f8fa;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
       overflow-wrap: anywhere;
     }
 
@@ -508,354 +551,565 @@
       height: 9px;
       overflow: hidden;
       border-radius: 999px;
-      background: #1c2b35;
+      background: rgba(255, 255, 255, 0.08);
     }
 
     .bar-fill {
       width: 0%;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--blue), var(--green));
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+      box-shadow: 0 0 16px rgba(0, 242, 255, 0.42);
     }
 
-    .attack-count {
+    .bar-fill.warn {
+      background: linear-gradient(90deg, var(--amber), var(--purple));
+    }
+
+    .bar-fill.fail {
+      background: linear-gradient(90deg, var(--red), var(--purple));
+    }
+
+    .threat-count {
       color: var(--text);
-      font-variant-numeric: tabular-nums;
-      text-align: right;
+      font-family: var(--mono);
       font-size: 13px;
-      font-weight: 780;
+      font-weight: 900;
+      text-align: right;
     }
 
     .table-wrap {
       overflow-x: auto;
+      border: 1px solid rgba(255, 255, 255, 0.055);
+      border-radius: 8px;
     }
 
     table {
       width: 100%;
+      min-width: 100%;
       border-collapse: collapse;
-      min-width: 720px;
+      table-layout: fixed;
+      background: rgba(5, 8, 12, 0.38);
     }
 
     th,
     td {
-      padding: 11px 10px;
-      border-bottom: 1px solid rgba(36, 57, 69, 0.72);
+      padding: 12px 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       text-align: left;
       vertical-align: top;
-      font-size: 13px;
     }
 
     th {
-      color: var(--quiet);
-      font-size: 12px;
-      font-weight: 780;
+      color: #b7c9d0;
+      background: rgba(255, 255, 255, 0.035);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 900;
       text-transform: uppercase;
-      background: rgba(18, 29, 37, 0.72);
     }
 
     td {
-      color: #dcebee;
+      color: #e0eef1;
+      font-family: var(--mono);
+      font-size: 12px;
+      overflow-wrap: normal;
+    }
+
+    td:nth-child(1),
+    td:nth-child(2),
+    td:nth-child(3),
+    td:nth-child(4),
+    td:nth-child(5) {
+      white-space: normal;
+      word-break: keep-all;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.018);
     }
 
     .reason {
-      max-width: 360px;
       color: var(--muted);
+      font-family: var(--sans);
+      font-size: 12px;
+      overflow-wrap: anywhere;
     }
 
-    .scope-list {
+    .audit-grid,
+    .readiness-grid,
+    .evidence-grid,
+    .future-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 10px;
+      gap: 12px;
     }
 
-    .scope-item {
-      border: 1px solid rgba(36, 57, 69, 0.72);
+    .audit-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .readiness-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .mini-card {
+      border: 1px solid rgba(255, 255, 255, 0.075);
       border-radius: 8px;
-      padding: 11px;
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(255, 255, 255, 0.026);
+      padding: 13px;
+    }
+
+    .mini-label {
+      color: var(--quiet);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .mini-value {
+      margin-top: 8px;
+      color: var(--text);
+      font-size: clamp(18px, 1.45vw, 24px);
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .mini-copy {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .recommendation {
+      margin-top: 14px;
+      border: 1px solid rgba(192, 38, 255, 0.35);
+      border-radius: 8px;
+      background: rgba(192, 38, 255, 0.10);
+      color: #eccbff;
+      padding: 14px;
+      font-size: 14px;
+    }
+
+    .check-list {
+      display: grid;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .check-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: start;
       color: var(--muted);
       font-size: 13px;
     }
 
-    .scope-item strong {
-      display: block;
-      color: var(--text);
-      margin-bottom: 4px;
+    .topology {
+      display: grid;
+      gap: 14px;
     }
 
-    footer {
-      color: var(--quiet);
-      font-size: 13px;
+    .topology-line {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .node {
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      gap: 8px;
+      border: 1px solid rgba(0, 242, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(0, 242, 255, 0.055);
+      padding: 14px;
       text-align: center;
     }
 
-    @media (max-width: 1120px) {
-      .hero,
+    .node strong {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .node span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .connector {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 900;
+      text-shadow: 0 0 14px rgba(0, 242, 255, 0.7);
+    }
+
+    .evidence-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .future-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 12px;
+    }
+
+    footer {
+      margin-top: 22px;
+      color: var(--quiet);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 1220px) {
+      .metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .pipeline {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .pipeline-step:nth-child(4)::after {
+        display: none;
+      }
+
       .two-column,
       .three-column {
         grid-template-columns: 1fr;
       }
 
-      .overview-grid {
+      .future-grid,
+      .evidence-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-
-      .pipeline,
-      .scope-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 720px) {
-      main {
-        width: min(100% - 20px, 1360px);
-        padding-top: 12px;
+    @media (max-width: 820px) {
+      .layout {
+        grid-template-columns: 1fr;
       }
 
-      .topbar,
-      .actions {
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 12px;
+      }
+
+      .nav a {
+        border: 1px solid rgba(0, 242, 255, 0.12);
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .sidebar-note {
+        display: none;
+      }
+
+      .topbar {
         align-items: stretch;
         flex-direction: column;
+        padding: 16px;
       }
 
-      .actions,
-      .mode-switch,
-      .mode-button,
-      .timestamp,
-      button {
+      .top-actions,
+      .top-actions button,
+      .timestamp {
         width: 100%;
       }
 
-      .mode-switch {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .content {
+        width: min(100% - 24px, 1480px);
+        padding-top: 18px;
       }
 
-      .hero,
-      .card,
-      .panel-body {
-        padding: 15px;
-      }
-
-      .overview-grid,
+      .metrics,
       .pipeline,
-      .scope-list {
+      .audit-grid,
+      .readiness-grid,
+      .future-grid,
+      .evidence-grid {
         grid-template-columns: 1fr;
       }
 
-      .check,
-      .insight {
-        grid-template-columns: 1fr;
+      .pipeline-step::after {
+        display: none;
       }
 
-      .attack-row {
-        grid-template-columns: 1fr 80px;
+      .threat-row {
+        grid-template-columns: 1fr 64px;
       }
 
-      .attack-name {
+      .threat-name {
         grid-column: 1 / -1;
+      }
+
+      .topology-line {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        min-width: 760px;
+        table-layout: auto;
+      }
+
+      .connector {
+        transform: rotate(90deg);
+        justify-self: center;
       }
     }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div class="brand">
+  <div class="layout">
+    <aside class="sidebar" aria-label="Dashboard navigation">
+      <div class="side-brand">
         <div class="brand-mark" aria-hidden="true"></div>
-        <div>
-          <div class="eyebrow">Final Baseline / Demo Dashboard</div>
-          <h1>NetGuard-AI Gateway</h1>
-        </div>
+        <div class="side-title">NetGuard-AI</div>
+        <div class="side-subtitle">Local read-only SOC view</div>
       </div>
-      <div class="actions">
-        <div class="mode-switch" aria-label="Dashboard data mode">
-          <button class="mode-button active" type="button" data-mode="live">Live</button>
-          <button class="mode-button" type="button" data-mode="demo-ok">Demo OK</button>
-          <button class="mode-button" type="button" data-mode="demo-warn">Demo WARN</button>
-          <button class="mode-button" type="button" data-mode="demo-fail">Demo FAIL</button>
-        </div>
-        <span class="pill INFO" id="demo-label" hidden><span class="dot"></span><span>Demo data only</span></span>
-        <span class="timestamp" id="updated">Last refreshed: never</span>
-        <button id="refresh" type="button">Refresh</button>
+      <nav class="nav">
+        <a class="active" href="#overview"><span class="nav-icon">01</span><span>Overview</span></a>
+        <a href="#threats"><span class="nav-icon">02</span><span>Threats</span></a>
+        <a href="#audit"><span class="nav-icon">03</span><span>Audit</span></a>
+        <a href="#gateway"><span class="nav-icon">04</span><span>Gateway</span></a>
+        <a href="#evidence"><span class="nav-icon">05</span><span>Evidence</span></a>
+        <a href="#future"><span class="nav-icon">06</span><span>Future Work</span></a>
+      </nav>
+      <div class="sidebar-note">
+        <strong>Honest Scope</strong>
+        Evidence snapshot, preliminary explainable classification, and current live gateway readiness. No prevention or automatic retraining.
       </div>
-    </header>
+    </aside>
 
-    <section class="hero" aria-label="Gateway status">
-      <div>
-        <div class="eyebrow">Supervisor-ready local security view</div>
-        <div class="hero-title" id="hero-result">Loading status...</div>
-        <p class="hero-copy" id="hero-explanation">Collecting local readiness, saved audit evidence, and preliminary attack classification summaries. This dashboard is local-only and read-only.</p>
-      </div>
-      <aside class="hero-aside" aria-label="Dashboard badges">
-        <div class="badge-row">
-          <span class="pill UNKNOWN" id="hero-pill"><span class="dot"></span><span>LOADING</span></span>
-          <span class="pill UNKNOWN" id="transport-pill"><span class="dot"></span><span>API pending</span></span>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="header-copy">
+          <h1>NETGUARD-AI GATEWAY</h1>
+          <p>Local Network Anomaly Detection &amp; Attack Classification</p>
+          <div class="badge-row" style="margin-top: 10px;">
+            <span class="badge info"><span class="dot"></span>Local-only</span>
+            <span class="badge info"><span class="dot"></span>Read-only</span>
+            <span class="badge purple"><span class="dot"></span>Final Baseline v10.2</span>
+          </div>
         </div>
-        <div class="badge-row">
-          <span class="pill INFO"><span class="dot"></span><span>Local-only</span></span>
-          <span class="pill INFO"><span class="dot"></span><span>Read-only API</span></span>
-          <span class="pill VIOLET"><span class="dot"></span><span id="release-label">v10.1 demo layer</span></span>
+        <div class="top-actions">
+          <span class="timestamp" id="updated">Last refresh: pending</span>
+          <button id="refresh" type="button">Refresh</button>
         </div>
-      </aside>
-    </section>
+      </header>
 
-    <section class="notice" id="warning-banner" hidden>
-      <span class="dot"></span>
-      <div>
-        <strong id="warning-title">Warnings detected</strong>
-        <p id="warning-copy">Review warning checks before treating this gateway as fully ready.</p>
-      </div>
-    </section>
+      <main class="content">
+        <section class="grid metrics" id="overview" aria-label="SOC overview metrics">
+          <article class="metric-card info" id="gateway-card">
+            <div class="metric-label">Gateway Status</div>
+            <div class="metric-value" id="gateway-status">Loading</div>
+            <div class="metric-meta" id="gateway-meta">Current live gateway readiness</div>
+          </article>
+          <article class="metric-card warn" id="risk-card">
+            <div class="metric-label">Risk Level</div>
+            <div class="metric-value" id="risk-level">Review</div>
+            <div class="metric-meta" id="risk-meta">Evidence snapshot from saved risk reports.</div>
+          </article>
+          <article class="metric-card purple">
+            <div class="metric-label">Likely Actionable Events</div>
+            <div class="metric-value" id="actionable-events">-</div>
+            <div class="metric-meta">High-confidence non-low-signal events</div>
+          </article>
+          <article class="metric-card info" id="api-card">
+            <div class="metric-label">API Health</div>
+            <div class="metric-value" id="api-health">Pending</div>
+            <div class="metric-meta">GET /healthz, /api/status, /api/demo-summary</div>
+          </article>
+          <article class="metric-card purple">
+            <div class="metric-label">Audit Recommendation</div>
+            <div class="metric-value" id="audit-recommendation">Do not retrain</div>
+            <div class="metric-meta">Post-training audit guardrail</div>
+          </article>
+          <article class="metric-card info">
+            <div class="metric-label">Smoke Test / Verification</div>
+            <div class="metric-value">Manual</div>
+            <div class="metric-meta">Run gateway_status_smoke_test.py</div>
+          </article>
+        </section>
 
-    <section class="grid overview-grid" aria-label="Gateway Readiness Overview">
-      <div class="card">
-        <div class="card-label">Overall status</div>
-        <div class="card-value" id="state-value">Loading</div>
-        <div class="card-meta" id="state-meta">Waiting for status response</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Gateway readiness</div>
-        <div class="card-value" id="ready-value">Pending</div>
-        <div class="card-meta">Gateway Doctor result</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Warnings</div>
-        <div class="card-value" id="warn-count">-</div>
-        <div class="card-meta">Signals needing review</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Blocking failures</div>
-        <div class="card-value" id="fail-count">-</div>
-        <div class="card-meta">Checks preventing readiness</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Status API health</div>
-        <div class="card-value" id="api-health">Pending</div>
-        <div class="card-meta">GET /api/status</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Smoke test note</div>
-        <div class="card-value">Manual</div>
-        <div class="card-meta">Run gateway_status_smoke_test.py</div>
-      </div>
-    </section>
+        <section class="panel" aria-label="Active inference pipeline">
+          <div class="panel-header">
+            <h2>Active Inference Pipeline</h2>
+            <span class="chip info"><span class="dot"></span>Visual flow from real project stages</span>
+          </div>
+          <div class="panel-body">
+            <div class="pipeline">
+              <div class="pipeline-step"><span class="pipeline-index">01</span><span class="pipeline-label">Zeek Logs</span><span class="pipeline-detail">local sensor input</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">02</span><span class="pipeline-label">Feature Extraction</span><span class="pipeline-detail">traffic fields</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">03</span><span class="pipeline-label">Window Engine</span><span class="pipeline-detail">30s behavior</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">04</span><span class="pipeline-label">Isolation Forest</span><span class="pipeline-detail">baseline anomaly</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">05</span><span class="pipeline-label">Risk Engine</span><span class="pipeline-detail">0-100 score</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">06</span><span class="pipeline-label">Post-training Audit</span><span class="pipeline-detail">retraining safety</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">07</span><span class="pipeline-label">Attack Classification</span><span class="pipeline-detail">explainable labels</span></div>
+              <div class="pipeline-step"><span class="pipeline-index">08</span><span class="pipeline-label">Dashboard</span><span class="pipeline-detail">read-only display</span></div>
+            </div>
+          </div>
+        </section>
 
-    <section class="panel" aria-label="Detection Pipeline Overview">
-      <div class="panel-header">
-        <h3>Detection Pipeline Overview</h3>
-        <span class="metric-pill INFO"><span class="dot"></span><span>Visual flow, not live traffic replay</span></span>
-      </div>
-      <div class="panel-body">
-        <div class="pipeline">
-          <div class="pipeline-step"><span class="pipeline-index">01</span><span class="pipeline-label">Zeek Logs</span></div>
-          <div class="pipeline-step"><span class="pipeline-index">02</span><span class="pipeline-label">Features / Windows</span></div>
-          <div class="pipeline-step"><span class="pipeline-index">03</span><span class="pipeline-label">Isolation Forest</span></div>
-          <div class="pipeline-step"><span class="pipeline-index">04</span><span class="pipeline-label">Risk Engine</span></div>
-          <div class="pipeline-step"><span class="pipeline-index">05</span><span class="pipeline-label">Audit</span></div>
-          <div class="pipeline-step"><span class="pipeline-index">06</span><span class="pipeline-label">Attack Classification</span></div>
-          <div class="pipeline-step"><span class="pipeline-index">07</span><span class="pipeline-label">Dashboard</span></div>
-        </div>
-      </div>
-    </section>
+        <section class="grid two-column" id="threats">
+          <section class="panel" aria-label="Threat classification summary">
+            <div class="panel-header">
+              <h2>Threat Classification Summary</h2>
+              <span class="chip purple" id="snapshot-date"><span class="dot"></span>Evidence snapshot</span>
+            </div>
+            <div class="panel-body">
+              <p class="section-note" id="classification-note">Evidence snapshot from saved risk reports.</p>
+              <div class="threat-list" id="threat-list"></div>
+            </div>
+          </section>
 
-    <section class="grid two-column">
-      <section class="panel" aria-label="Security Insights">
-        <div class="panel-header">
-          <h3>Security Insights</h3>
-          <span class="metric-pill INFO"><span class="dot"></span><span id="snapshot-date">Latest evidence snapshot</span></span>
-        </div>
-        <div class="panel-body">
-          <div class="insight-list" id="insights"></div>
-        </div>
-      </section>
+          <section class="panel" aria-label="Recent classified events table">
+            <div class="panel-header">
+              <h2>Recent Classified Events</h2>
+              <span class="chip info"><span class="dot"></span>Preliminary explainable classification</span>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Source IP</th>
+                      <th>Attack Type</th>
+                      <th>Confidence</th>
+                      <th>Risk Score</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody id="events-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
 
-      <section class="panel" aria-label="Attack Classification Summary">
-        <div class="panel-header">
-          <h3>Attack Classification Summary</h3>
-          <span class="metric-pill VIOLET"><span class="dot"></span><span id="classification-date">Demo evidence date</span></span>
-        </div>
-        <div class="panel-body">
-          <div class="classification-grid" id="classification-grid"></div>
-        </div>
-      </section>
-    </section>
+        <section class="grid three-column" id="audit">
+          <section class="panel" aria-label="Post-training audit panel">
+            <div class="panel-header">
+              <h2>Post-training Audit</h2>
+              <span class="chip purple"><span class="dot"></span>ML lifecycle guardrail</span>
+            </div>
+            <div class="panel-body">
+              <div class="audit-grid">
+                <div class="mini-card">
+                  <div class="mini-label">Suspicious validation days found</div>
+                  <div class="mini-value" id="suspicious-days">-</div>
+                </div>
+                <div class="mini-card">
+                  <div class="mini-label">Recommendation</div>
+                  <div class="mini-value" id="audit-action">Do not retrain</div>
+                </div>
+                <div class="mini-card">
+                  <div class="mini-label">CANDIDATE_CLEAN count</div>
+                  <div class="mini-value" id="candidate-clean">-</div>
+                </div>
+                <div class="mini-card">
+                  <div class="mini-label">SUSPICIOUS_VALIDATION count</div>
+                  <div class="mini-value" id="suspicious-validation">-</div>
+                </div>
+              </div>
+              <div class="recommendation" id="audit-copy">Suggested labels are preliminary and do not automatically approve retraining.</div>
+            </div>
+          </section>
 
-    <section class="panel" aria-label="Top Classified Events">
-      <div class="panel-header">
-        <h3>Top Classified Events</h3>
-        <span class="metric-pill INFO"><span class="dot"></span><span>From saved risk reports</span></span>
-      </div>
-      <div class="panel-body">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Source IP</th>
-                <th>Attack Type</th>
-                <th>Confidence</th>
-                <th>Risk Score</th>
-                <th>Reason Preview</th>
-              </tr>
-            </thead>
-            <tbody id="events-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+          <section class="panel" id="gateway" aria-label="Gateway readiness panel">
+            <div class="panel-header">
+              <h2>System Readiness</h2>
+              <span class="chip info" id="readiness-chip"><span class="dot"></span>Current live gateway readiness</span>
+            </div>
+            <div class="panel-body">
+              <div class="mini-card">
+                <div class="mini-label">Current live gateway environment</div>
+                <div class="mini-value" id="live-environment">Loading</div>
+                <div class="mini-copy" id="live-environment-copy">Saved evidence and dashboard data remain available.</div>
+              </div>
+              <div class="readiness-grid" style="margin-top: 12px;">
+                <div class="mini-card"><div class="mini-label">OK checks</div><div class="mini-value ok" id="ok-count">-</div></div>
+                <div class="mini-card"><div class="mini-label">WARN checks</div><div class="mini-value warn" id="warn-count">-</div></div>
+                <div class="mini-card"><div class="mini-label">FAIL checks</div><div class="mini-value fail" id="fail-count">-</div></div>
+              </div>
+              <div class="check-list" id="readiness-list"></div>
+            </div>
+          </section>
 
-    <div class="section-title">
-      <div>
-        <h2>Readiness Breakdown</h2>
-        <p>Grouped by current check status from the local gateway status API or selected demo mode.</p>
-      </div>
+          <section class="panel" aria-label="Network topology card">
+            <div class="panel-header">
+              <h2>Network Topology</h2>
+              <span class="chip info"><span class="dot"></span>Deployment context</span>
+            </div>
+            <div class="panel-body">
+              <div class="topology">
+                <div class="topology-line">
+                  <div class="node"><strong>Internet / Router</strong><span>upstream network</span></div>
+                  <div class="connector">-></div>
+                  <div class="node"><strong>NetGuard-AI Gateway</strong><span>Zeek + local analysis</span></div>
+                  <div class="connector">-></div>
+                  <div class="node"><strong>Local Network Devices</strong><span>home or lab clients</span></div>
+                </div>
+                <p class="section-note">Full network visibility requires Gateway mode or SPAN/Mirror mode.</p>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="grid two-column">
+          <section class="panel" id="evidence" aria-label="Evidence and reporting cards">
+            <div class="panel-header">
+              <h2>Evidence / Reporting</h2>
+              <span class="chip info"><span class="dot"></span>Read-only cards</span>
+            </div>
+            <div class="panel-body">
+              <div class="evidence-grid">
+                <div class="mini-card"><div class="mini-label">Final Project Check</div><div class="mini-value">Verify</div><div class="mini-copy">Runs compile, shell, audit, and classification checks.</div></div>
+                <div class="mini-card"><div class="mini-label">Audit Evidence Export</div><div class="mini-value">Optional</div><div class="mini-copy">Explicit operator command; never automatic.</div></div>
+                <div class="mini-card"><div class="mini-label">Classification Evidence Export</div><div class="mini-value">Optional</div><div class="mini-copy">Saved risk report summaries for review.</div></div>
+                <div class="mini-card"><div class="mini-label">Smoke Test</div><div class="mini-value">Local</div><div class="mini-copy">Confirms health, status, dashboard, and rejected writes.</div></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" id="future" aria-label="Future productization panel">
+            <div class="panel-header">
+              <h2>Future Productization</h2>
+              <span class="chip purple"><span class="dot"></span>Not part of this sprint</span>
+            </div>
+            <div class="panel-body">
+              <div class="future-grid">
+                <div class="mini-card"><div class="mini-label">Grafana monitoring</div><div class="mini-copy">Future operational dashboards after durable metrics storage.</div></div>
+                <div class="mini-card"><div class="mini-label">Telegram alerts</div><div class="mini-copy">Future notification channel after alert policy review.</div></div>
+                <div class="mini-card"><div class="mini-label">Multi-sensor support</div><div class="mini-copy">Future coverage for multiple network observation points.</div></div>
+                <div class="mini-card"><div class="mini-label">Kafka streaming pipeline</div><div class="mini-copy">Future event transport for larger deployments.</div></div>
+                <div class="mini-card"><div class="mini-label">Reviewed-label classifier</div><div class="mini-copy">ML attack classifier after trusted analyst labels exist.</div></div>
+                <div class="mini-card"><div class="mini-label">Product packaging</div><div class="mini-copy">Installer, hardening, and operator guidance.</div></div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <footer>NetGuard-AI Gateway v10.2 SOC Dashboard - local-first, offline-capable, read-only presentation layer using saved evidence and current readiness only.</footer>
+      </main>
     </div>
-
-    <section class="grid three-column" aria-label="Readiness breakdown">
-      <section class="panel" aria-labelledby="ok-title">
-        <div class="panel-header">
-          <h3 id="ok-title">OK checks</h3>
-          <span class="pill OK" id="ok-count"><span class="dot"></span><span>0</span></span>
-        </div>
-        <div class="checks" id="ok-checks"></div>
-      </section>
-
-      <section class="panel" aria-labelledby="warn-title">
-        <div class="panel-header">
-          <h3 id="warn-title">WARN checks</h3>
-          <span class="pill WARN" id="warn-group-count"><span class="dot"></span><span>0</span></span>
-        </div>
-        <div class="checks" id="warn-checks"></div>
-      </section>
-
-      <section class="panel" aria-labelledby="fail-title">
-        <div class="panel-header">
-          <h3 id="fail-title">FAIL checks</h3>
-          <span class="pill FAIL" id="fail-group-count"><span class="dot"></span><span>0</span></span>
-        </div>
-        <div class="checks" id="fail-checks"></div>
-      </section>
-    </section>
-
-    <section class="panel" aria-label="Limitations and honest scope">
-      <div class="panel-header">
-        <h3>Limitations / Honest Scope</h3>
-        <span class="metric-pill INFO"><span class="dot"></span><span>No automatic enforcement</span></span>
-      </div>
-      <div class="panel-body">
-        <div class="scope-list">
-          <div class="scope-item"><strong>Local dashboard</strong>Served from 127.0.0.1 for demo and review.</div>
-          <div class="scope-item"><strong>Read-only API</strong>GET data only; write-style methods are rejected.</div>
-          <div class="scope-item"><strong>Network visibility</strong>Full coverage requires Gateway or SPAN/Mirror.</div>
-          <div class="scope-item"><strong>Classification</strong>Preliminary and explainable, not guaranteed ground truth.</div>
-          <div class="scope-item"><strong>Retraining</strong>No automatic retraining or baseline approval.</div>
-        </div>
-      </div>
-    </section>
-
-    <footer>NetGuard-AI Gateway v10.1 Professional Demo Dashboard - local-first, offline-capable, read-only presentation layer.</footer>
-  </main>
+  </div>
 
   <script>
     const ATTACK_TYPES = [
@@ -864,391 +1118,201 @@
       "FAILED_CONNECTION_PATTERN",
       "BOT_LIKE_BEHAVIOR",
       "UNKNOWN_SUSPICIOUS",
-      "LOW_SIGNAL_REVIEW",
-      "SSH_BRUTE_FORCE_OR_LOGIN_PATTERN",
-      "DOS_LIKE_BURST"
+      "LOW_SIGNAL_REVIEW"
     ];
 
-    const refreshButton = document.getElementById("refresh");
-    const modeButtons = Array.from(document.querySelectorAll(".mode-button"));
-    const demoLabel = document.getElementById("demo-label");
-    const updated = document.getElementById("updated");
-    const heroResult = document.getElementById("hero-result");
-    const heroExplanation = document.getElementById("hero-explanation");
-    const heroPill = document.getElementById("hero-pill");
-    const transportPill = document.getElementById("transport-pill");
-    const warningBanner = document.getElementById("warning-banner");
-    const warningTitle = document.getElementById("warning-title");
-    const warningCopy = document.getElementById("warning-copy");
-    const stateValue = document.getElementById("state-value");
-    const stateMeta = document.getElementById("state-meta");
-    const readyValue = document.getElementById("ready-value");
-    const failCount = document.getElementById("fail-count");
-    const warnCount = document.getElementById("warn-count");
-    const apiHealth = document.getElementById("api-health");
-    const releaseLabel = document.getElementById("release-label");
-    const snapshotDate = document.getElementById("snapshot-date");
-    const classificationDate = document.getElementById("classification-date");
-    const insights = document.getElementById("insights");
-    const classificationGrid = document.getElementById("classification-grid");
-    const eventsBody = document.getElementById("events-body");
-    const lists = {
-      OK: document.getElementById("ok-checks"),
-      WARN: document.getElementById("warn-checks"),
-      FAIL: document.getElementById("fail-checks")
-    };
-    const groupCounts = {
-      OK: document.querySelector("#ok-count span:last-child"),
-      WARN: document.querySelector("#warn-group-count span:last-child"),
-      FAIL: document.querySelector("#fail-group-count span:last-child")
-    };
-
-    const demoSummary = {
+    const fallbackSummary = {
       project: "NetGuard-AI Gateway",
-      release: "v10.1-professional-demo-dashboard",
+      release: "v10.2-soc-dashboard-redesign",
       read_only: true,
+      local_only: true,
       demo_snapshot_date: "2026-06-20",
+      gateway_status: null,
+      gateway_status_available: false,
       audit: {
         available: true,
         recommendation: "Do not retrain. Suspicious validation days are present.",
         labels: {
           CANDIDATE_CLEAN: 1,
-          PARTIAL_CANDIDATE_CLEAN: 0,
-          SUSPICIOUS_VALIDATION: 7,
-          INCOMPLETE: 0
+          SUSPICIOUS_VALIDATION: 7
         },
         note: "Suggested labels are preliminary and do not automatically approve retraining."
       },
       classification: {
         available: true,
         date: "2026-06-20",
-        risk_rows: 11415,
-        suspicious_rows: 638,
-        classified_rows: 638,
+        likely_actionable_events: 31,
         attack_type_counts: {
           PORT_SCAN: 65,
-          SSH_BRUTE_FORCE_OR_LOGIN_PATTERN: 0,
-          FAILED_CONNECTION_PATTERN: 531,
           DNS_ANOMALY: 38,
-          DOS_LIKE_BURST: 0,
+          FAILED_CONNECTION_PATTERN: 531,
           BOT_LIKE_BEHAVIOR: 3,
           UNKNOWN_SUSPICIOUS: 1,
           LOW_SIGNAL_REVIEW: 0
         },
-        high_confidence_counts: {
-          PORT_SCAN: 10,
-          DNS_ANOMALY: 21
-        },
-        likely_actionable_events: 31,
-        note: "These labels are preliminary, explainable classifications for analyst review and do not represent guaranteed ground truth.",
         top_events: [
           {time: "2026-06-20 22:03:02", src_ip: "192.168.1.104", attack_type: "DNS_ANOMALY", confidence: 0.71, risk_score: 34.44, reasons: ["flag_dns_flood is set", "dns_rate_30s=2.93 >= 1.0"]},
           {time: "2026-06-20 21:50:32", src_ip: "192.168.1.104", attack_type: "DNS_ANOMALY", confidence: 0.71, risk_score: 33.74, reasons: ["flag_dns_flood is set", "dns_rate_30s=2.33 >= 1.0"]},
           {time: "2026-06-20 20:59:32", src_ip: "192.168.1.180", attack_type: "PORT_SCAN", confidence: 0.70, risk_score: 40.62, reasons: ["unique_dst_ips_30s=15 >= 10", "connections_30s=134 with failed_conn_rate_30s=0.95"]},
           {time: "2026-06-20 07:07:32", src_ip: "192.168.1.104", attack_type: "PORT_SCAN", confidence: 0.70, risk_score: 37.43, reasons: ["unique_dst_ips_30s=14 >= 10", "connections_30s=110 with failed_conn_rate_30s=0.99"]},
           {time: "2026-06-20 08:59:02", src_ip: "192.168.1.180", attack_type: "PORT_SCAN", confidence: 0.70, risk_score: 36.21, reasons: ["unique_dst_ips_30s=15 >= 10", "connections_30s=95 with failed_conn_rate_30s=1.00"]}
-        ]
+        ],
+        note: "These labels are preliminary, explainable classifications for analyst review and do not represent guaranteed ground truth."
       }
     };
 
-    const demoPayloads = {
-      "demo-ok": {
-        final_result: "READY as NetGuard-AI gateway",
-        fail_count: 0,
-        warn_count: 0,
-        checks: [
-          {status: "OK", message: "network_profile loaded"},
-          {status: "OK", message: "read-only mode confirmed"},
-          {status: "OK", message: "default route available"},
-          {status: "OK", message: "WAN interface detected"},
-          {status: "OK", message: "LAN interface detected"},
-          {status: "OK", message: "IP forwarding enabled"},
-          {status: "OK", message: "NAT readiness confirmed"},
-          {status: "OK", message: "Zeek service visible"}
-        ]
-      },
-      "demo-warn": {
-        final_result: "READY with warnings as NetGuard-AI gateway",
-        fail_count: 0,
-        warn_count: 2,
-        checks: [
-          {status: "OK", message: "network_profile loaded"},
-          {status: "OK", message: "read-only mode confirmed"},
-          {status: "OK", message: "WAN interface detected"},
-          {status: "WARN", message: "LAN interface not detected in this review context"},
-          {status: "WARN", message: "NAT readiness unknown without elevated table access"},
-          {status: "OK", message: "Zeek service visible"}
-        ]
-      },
-      "demo-fail": {
-        final_result: "NOT READY as NetGuard-AI gateway",
-        fail_count: 3,
-        warn_count: 1,
-        checks: [
-          {status: "OK", message: "network_profile loaded"},
-          {status: "OK", message: "read-only mode confirmed"},
-          {status: "FAIL", message: "default route not found"},
-          {status: "FAIL", message: "WAN interface not detected"},
-          {status: "FAIL", message: "IP forwarding disabled"},
-          {status: "WARN", message: "Zeek interface unknown"}
-        ]
-      }
-    };
-
-    let activeMode = "live";
+    const refreshButton = document.getElementById("refresh");
+    const updated = document.getElementById("updated");
+    const gatewayCard = document.getElementById("gateway-card");
+    const gatewayStatus = document.getElementById("gateway-status");
+    const gatewayMeta = document.getElementById("gateway-meta");
+    const riskCard = document.getElementById("risk-card");
+    const riskLevel = document.getElementById("risk-level");
+    const riskMeta = document.getElementById("risk-meta");
+    const actionableEvents = document.getElementById("actionable-events");
+    const apiCard = document.getElementById("api-card");
+    const apiHealth = document.getElementById("api-health");
+    const auditRecommendation = document.getElementById("audit-recommendation");
+    const snapshotDate = document.getElementById("snapshot-date");
+    const classificationNote = document.getElementById("classification-note");
+    const threatList = document.getElementById("threat-list");
+    const eventsBody = document.getElementById("events-body");
+    const suspiciousDays = document.getElementById("suspicious-days");
+    const auditAction = document.getElementById("audit-action");
+    const candidateClean = document.getElementById("candidate-clean");
+    const suspiciousValidation = document.getElementById("suspicious-validation");
+    const auditCopy = document.getElementById("audit-copy");
+    const readinessChip = document.getElementById("readiness-chip");
+    const liveEnvironment = document.getElementById("live-environment");
+    const liveEnvironmentCopy = document.getElementById("live-environment-copy");
+    const okCount = document.getElementById("ok-count");
+    const warnCount = document.getElementById("warn-count");
+    const failCount = document.getElementById("fail-count");
+    const readinessList = document.getElementById("readiness-list");
 
     function setText(element, value) {
       element.textContent = value;
     }
 
-    function setPill(element, status, label) {
-      element.className = `pill ${status}`;
-      element.innerHTML = `<span class="dot"></span><span>${label}</span>`;
+    function cardState(element, state) {
+      element.classList.remove("ok", "warn", "fail", "info", "purple");
+      element.classList.add(state);
     }
 
     function statusFromResult(result) {
       const value = String(result || "");
       if (value.startsWith("NOT READY")) {
-        return "FAIL";
+        return "fail";
       }
-      if (value.includes("warnings")) {
-        return "WARN";
+      if (value.toLowerCase().includes("warning")) {
+        return "warn";
       }
       if (value.startsWith("READY")) {
-        return "OK";
+        return "ok";
+      }
+      return "info";
+    }
+
+    function shortGatewayLabel(result) {
+      const value = String(result || "Unavailable");
+      if (value.startsWith("NOT READY")) {
+        return "NOT READY";
+      }
+      if (value.toLowerCase().includes("warning")) {
+        return "REVIEW";
+      }
+      if (value.startsWith("READY")) {
+        return "READY";
       }
       return "UNKNOWN";
     }
 
-    function explanationFor(status) {
-      if (status === "FAIL") {
-        return "One or more readiness checks failed. Review failed items before relying on this gateway.";
+    function riskFromClassification(classification) {
+      const events = Array.isArray(classification.top_events) ? classification.top_events : [];
+      const maxRisk = Math.max(0, ...events.map((event) => Number(event.risk_score || 0)));
+      const actionable = Number(classification.likely_actionable_events || 0);
+      if (maxRisk >= 70) {
+        return {label: "High", state: "fail", meta: `Saved evidence max risk score ${maxRisk.toFixed(2)}.`};
       }
-      if (status === "WARN") {
-        return "Gateway readiness is usable but degraded. Review warning checks before treating it as fully ready.";
+      if (actionable > 0 || maxRisk >= 30) {
+        return {label: "Review", state: "warn", meta: `Saved evidence includes ${actionable} likely actionable event${actionable === 1 ? "" : "s"}.`};
       }
-      if (status === "OK") {
-        return "All readiness checks returned OK. The local gateway profile is ready for demo.";
-      }
-      return "Gateway readiness is not available yet. Refresh to query the local status API.";
+      return {label: "Low", state: "ok", meta: "Saved evidence has no high-confidence actionable events."};
     }
 
-    function emptyMessage(status) {
-      if (status === "OK") {
-        return ["No OK checks returned", "The local status API did not report passing checks."];
+    function normalizeSummary(summary) {
+      return summary && typeof summary === "object" ? summary : fallbackSummary;
+    }
+
+    function gatewayFromSummary(summary, statusPayload) {
+      if (statusPayload && typeof statusPayload === "object") {
+        return statusPayload;
       }
-      if (status === "WARN") {
-        return ["No warnings", "No degraded readiness checks are currently reported."];
-      }
-      return ["No failures", "No blocking readiness checks are currently reported."];
+      return summary.gateway_status || null;
     }
 
-    function makeCheck(item) {
-      const row = document.createElement("div");
-      row.className = "check";
-
-      const status = String(item.status || "WARN");
-      const pill = document.createElement("span");
-      pill.className = `pill ${status}`;
-
-      const dot = document.createElement("span");
-      dot.className = "dot";
-
-      const label = document.createElement("span");
-      label.textContent = status;
-
-      const message = document.createElement("div");
-      message.className = "check-message";
-      message.textContent = String(item.message || "");
-
-      pill.appendChild(dot);
-      pill.appendChild(label);
-      row.appendChild(pill);
-      row.appendChild(message);
-      return row;
-    }
-
-    function renderGroup(status, items) {
-      const list = lists[status];
-      list.innerHTML = "";
-      setText(groupCounts[status], items.length.toString());
-
-      if (items.length === 0) {
-        const empty = document.createElement("div");
-        const title = document.createElement("div");
-        const copy = document.createElement("div");
-        const text = emptyMessage(status);
-
-        empty.className = "empty";
-        title.className = "empty-title";
-        title.textContent = text[0];
-        copy.textContent = text[1];
-
-        empty.appendChild(title);
-        empty.appendChild(copy);
-        list.appendChild(empty);
-        return;
-      }
-
-      for (const item of items) {
-        list.appendChild(makeCheck(item));
-      }
-    }
-
-    function renderChecks(items) {
-      const checks = Array.isArray(items) ? items : [];
-      const grouped = {OK: [], WARN: [], FAIL: []};
-
-      for (const item of checks) {
-        const status = String(item.status || "WARN");
-        if (grouped[status]) {
-          grouped[status].push(item);
-        }
-      }
-
-      renderGroup("OK", grouped.OK);
-      renderGroup("WARN", grouped.WARN);
-      renderGroup("FAIL", grouped.FAIL);
-      return grouped;
-    }
-
-    function updateWarningBanner(warnings, failures) {
-      if (failures > 0) {
-        warningBanner.hidden = false;
-        setText(warningTitle, "Blocking failures detected");
-        setText(warningCopy, `${failures} failure check${failures === 1 ? "" : "s"} detected. Review FAIL items before demoing gateway readiness.`);
-        return;
-      }
-      if (warnings > 0) {
-        warningBanner.hidden = false;
-        setText(warningTitle, "Warnings detected");
-        setText(warningCopy, `${warnings} warning check${warnings === 1 ? "" : "s"} detected. Review WARN items before treating the gateway as fully ready.`);
-        return;
-      }
-      warningBanner.hidden = true;
-    }
-
-    function renderStatus(data, sourceLabel) {
-      const result = data.final_result || "unknown";
-      const status = statusFromResult(result);
-      const failures = Number(data.fail_count || 0);
-      const warnings = Number(data.warn_count || 0);
-
-      setText(heroResult, result);
-      setText(heroExplanation, explanationFor(status));
-      setPill(heroPill, status, status);
-      setPill(transportPill, sourceLabel.status, sourceLabel.text);
-      setText(stateValue, status === "UNKNOWN" ? "Unknown" : status);
-      setText(stateMeta, result);
-      setText(readyValue, failures > 0 ? "Blocked" : warnings > 0 ? "Review" : "Ready");
-      setText(failCount, failures.toString());
-      setText(warnCount, warnings.toString());
-      setText(apiHealth, sourceLabel.text);
-      renderChecks(data.checks);
-      updateWarningBanner(warnings, failures);
-    }
-
-    function renderUnavailable(message) {
-      setText(heroResult, "Status unavailable");
-      setText(heroExplanation, message || "Unable to load gateway readiness from the local status API.");
-      setPill(heroPill, "FAIL", "ERROR");
-      setPill(transportPill, "FAIL", "API error");
-      setText(stateValue, "Unavailable");
-      setText(stateMeta, "Local status request failed");
-      setText(readyValue, "Unknown");
-      setText(failCount, "-");
-      setText(warnCount, "-");
-      setText(apiHealth, "Offline");
-      warningBanner.hidden = true;
-      renderGroup("OK", []);
-      renderGroup("WARN", []);
-      renderGroup("FAIL", []);
-    }
-
-    function addInsight(status, title, copy) {
-      const item = document.createElement("div");
-      item.className = "insight";
-
-      const pill = document.createElement("span");
-      pill.className = `pill ${status}`;
-      const dot = document.createElement("span");
-      dot.className = "dot";
-      const label = document.createElement("span");
-      label.textContent = status;
-      pill.appendChild(dot);
-      pill.appendChild(label);
-
-      const text = document.createElement("div");
-      const heading = document.createElement("div");
-      const body = document.createElement("div");
-      heading.className = "insight-title";
-      body.className = "insight-copy";
-      heading.textContent = title;
-      body.textContent = copy;
-      text.appendChild(heading);
-      text.appendChild(body);
-      item.appendChild(pill);
-      item.appendChild(text);
-      insights.appendChild(item);
-    }
-
-    function renderInsights(summary) {
-      const audit = summary.audit || {};
+    function renderMetrics(summary, statusPayload, apiOnline) {
       const classification = summary.classification || {};
-      const labels = audit.labels || {};
-      const highCounts = classification.high_confidence_counts || {};
-      const highTotal = Object.values(highCounts).reduce((sum, value) => sum + Number(value || 0), 0);
+      const audit = summary.audit || {};
+      const gateway = gatewayFromSummary(summary, statusPayload);
+      const result = gateway ? gateway.final_result : "Unavailable";
+      const gatewayState = gateway ? statusFromResult(result) : "fail";
+      const gatewayLabel = gateway ? shortGatewayLabel(result) : "UNKNOWN";
+      const risk = riskFromClassification(classification);
 
-      insights.innerHTML = "";
-      addInsight(audit.available ? "WARN" : "FAIL", "Post-training audit status", audit.available ? "Saved reports are available for review." : "Audit summary is unavailable from saved reports.");
-      addInsight("WARN", "Retraining recommendation", audit.recommendation || "Do not retrain automatically.");
-      addInsight(classification.available ? "OK" : "WARN", "Attack Classification available", classification.available ? `${classification.classified_rows || 0} suspicious rows classified for review.` : "Run attack_classifier.py to generate detailed classification evidence.");
-      addInsight("INFO", "Likely actionable events", `${classification.likely_actionable_events || 0} high-confidence non-low-signal events in the evidence snapshot.`);
-      addInsight("OK", "High-confidence classification note", `${highTotal} high-confidence classifications. Labels remain preliminary and explainable.`);
-      addInsight("VIOLET", "Audit label mix", `Clean candidates: ${labels.CANDIDATE_CLEAN || 0}; suspicious validation days: ${labels.SUSPICIOUS_VALIDATION || 0}.`);
+      cardState(gatewayCard, gatewayState);
+      setText(gatewayStatus, gatewayLabel);
+      setText(gatewayMeta, gateway ? result : "Current live gateway environment could not be read.");
+      cardState(riskCard, risk.state);
+      setText(riskLevel, risk.label);
+      setText(riskMeta, risk.meta);
+      setText(actionableEvents, String(classification.likely_actionable_events || 0));
+      cardState(apiCard, apiOnline ? "ok" : "fail");
+      setText(apiHealth, apiOnline ? "Online" : "Offline");
+      setText(auditRecommendation, summarizeRecommendation(audit.recommendation));
     }
 
-    function renderClassification(summary) {
+    function summarizeRecommendation(text) {
+      const value = String(text || "Do not retrain");
+      if (value.toLowerCase().includes("do not retrain")) {
+        return "Do not retrain";
+      }
+      return value.length > 22 ? `${value.slice(0, 19)}...` : value;
+    }
+
+    function renderThreats(summary) {
       const classification = summary.classification || {};
       const counts = classification.attack_type_counts || {};
       const maxCount = Math.max(1, ...ATTACK_TYPES.map((type) => Number(counts[type] || 0)));
+      const highSignal = classification.high_confidence_counts || {};
 
-      classificationGrid.innerHTML = "";
-      setText(classificationDate, classification.date ? `Demo evidence date ${classification.date}` : "Demo evidence date unavailable");
-
-      if (!classification.available) {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.textContent = classification.note || "Run attack_classifier.py to generate detailed classification evidence.";
-        classificationGrid.appendChild(empty);
-        return;
-      }
+      setText(snapshotDate, `Evidence snapshot ${classification.date || summary.demo_snapshot_date || "from saved risk reports"}`);
+      setText(classificationNote, classification.note || "Evidence snapshot from saved risk reports.");
+      threatList.innerHTML = "";
 
       for (const type of ATTACK_TYPES) {
         const count = Number(counts[type] || 0);
         const row = document.createElement("div");
-        row.className = "attack-row";
-
         const name = document.createElement("div");
-        name.className = "attack-name";
-        name.textContent = type.replaceAll("_", " ");
-        name.title = type;
-
         const bar = document.createElement("div");
-        bar.className = "bar";
         const fill = document.createElement("div");
-        fill.className = "bar-fill";
-        fill.style.width = `${Math.max(2, Math.round((count / maxCount) * 100))}%`;
-        bar.appendChild(fill);
-
         const value = document.createElement("div");
-        value.className = "attack-count";
-        value.textContent = count.toString();
+        const highCount = Number(highSignal[type] || 0);
 
+        row.className = "threat-row";
+        name.className = "threat-name";
+        name.textContent = type;
+        bar.className = "bar";
+        fill.className = `bar-fill ${type === "UNKNOWN_SUSPICIOUS" ? "fail" : type === "LOW_SIGNAL_REVIEW" ? "warn" : ""}`;
+        fill.style.width = `${Math.max(count > 0 ? 4 : 0, Math.round((count / maxCount) * 100))}%`;
+        value.className = "threat-count";
+        value.textContent = highCount > 0 ? `${count} / ${highCount} high` : String(count);
+
+        bar.appendChild(fill);
         row.appendChild(name);
         row.appendChild(bar);
         row.appendChild(value);
-        classificationGrid.appendChild(row);
+        threatList.appendChild(row);
       }
     }
 
@@ -1261,7 +1325,7 @@
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.colSpan = 6;
-        cell.textContent = "Run attack_classifier.py to generate detailed classification evidence.";
+        cell.textContent = "Evidence snapshot from saved risk reports.";
         row.appendChild(cell);
         eventsBody.appendChild(row);
         return;
@@ -1269,13 +1333,16 @@
 
       for (const event of events) {
         const row = document.createElement("tr");
+        const reason = Array.isArray(event.reasons) && event.reasons.length
+          ? event.reasons.slice(0, 2).join("; ")
+          : "Evidence snapshot from saved risk reports.";
         const values = [
           event.time || "n/a",
           event.src_ip || "n/a",
-          event.attack_type || "UNKNOWN",
+          event.attack_type || "UNKNOWN_SUSPICIOUS",
           Number(event.confidence || 0).toFixed(2),
           Number(event.risk_score || 0).toFixed(2),
-          Array.isArray(event.reasons) ? event.reasons.slice(0, 2).join("; ") : "n/a"
+          reason
         ];
 
         values.forEach((value, index) => {
@@ -1290,80 +1357,115 @@
       }
     }
 
-    function renderSummary(summary) {
-      const data = summary || demoSummary;
-      setText(releaseLabel, data.release || "v10.1 demo layer");
-      setText(snapshotDate, data.demo_snapshot_date ? `Latest evidence snapshot ${data.demo_snapshot_date}` : "Latest evidence snapshot");
-      renderInsights(data);
-      renderClassification(data);
-      renderEvents(data);
+    function renderAudit(summary) {
+      const audit = summary.audit || {};
+      const labels = audit.labels || {};
+      const suspicious = Number(labels.SUSPICIOUS_VALIDATION || 0);
+      const clean = Number(labels.CANDIDATE_CLEAN || 0);
+
+      setText(suspiciousDays, String(suspicious));
+      setText(auditAction, summarizeRecommendation(audit.recommendation));
+      setText(candidateClean, String(clean));
+      setText(suspiciousValidation, String(suspicious));
+      setText(auditCopy, audit.recommendation || audit.note || "Suggested labels are preliminary and do not automatically approve retraining.");
     }
 
-    function setMode(mode) {
-      activeMode = mode;
-      for (const button of modeButtons) {
-        button.classList.toggle("active", button.dataset.mode === mode);
-      }
-      demoLabel.hidden = mode === "live";
-      refreshStatus();
-    }
+    function renderReadiness(summary, statusPayload) {
+      const gateway = gatewayFromSummary(summary, statusPayload);
+      const result = gateway ? gateway.final_result : "Status unavailable";
+      const state = gateway ? statusFromResult(result) : "fail";
+      const checks = gateway && Array.isArray(gateway.checks) ? gateway.checks : [];
+      const counts = checks.reduce((acc, item) => {
+        const status = String(item.status || "WARN");
+        if (acc[status] !== undefined) {
+          acc[status] += 1;
+        }
+        return acc;
+      }, {OK: 0, WARN: 0, FAIL: 0});
 
-    async function loadLiveStatus() {
-      const response = await fetch("/api/status", {cache: "no-store"});
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || `status request failed: ${response.status}`);
-      }
-      return data;
-    }
+      readinessChip.className = `chip ${state}`;
+      readinessChip.innerHTML = `<span class="dot"></span>Current live gateway readiness`;
+      setText(liveEnvironment, `Current live gateway environment: ${shortGatewayLabel(result)}`);
+      setText(liveEnvironmentCopy, state === "fail" ? "Saved evidence and dashboard data remain available." : "Saved evidence and current readiness are available for supervisor review.");
+      setText(okCount, String(counts.OK));
+      setText(warnCount, String(gateway ? Number(gateway.warn_count || counts.WARN) : counts.WARN));
+      setText(failCount, String(gateway ? Number(gateway.fail_count || counts.FAIL) : counts.FAIL));
+      readinessList.innerHTML = "";
 
-    async function loadDemoSummary() {
-      const response = await fetch("/api/demo-summary", {cache: "no-store"});
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || `demo summary request failed: ${response.status}`);
-      }
-      return data;
-    }
-
-    async function refreshStatus() {
-      refreshButton.disabled = true;
-
-      if (activeMode !== "live") {
-        renderStatus(demoPayloads[activeMode], {status: "UNKNOWN", text: "Demo data"});
-        renderSummary(demoSummary);
-        setText(updated, `Last refreshed: ${new Date().toLocaleString()}`);
-        refreshButton.disabled = false;
+      if (!checks.length) {
+        const row = document.createElement("div");
+        row.className = "check-row";
+        row.innerHTML = '<span class="chip fail"><span class="dot"></span>WARN</span><span>Gateway Doctor data is unavailable; saved evidence and dashboard data remain available.</span>';
+        readinessList.appendChild(row);
         return;
       }
 
-      setPill(transportPill, "UNKNOWN", "API pending");
-
-      try {
-        const results = await Promise.allSettled([loadLiveStatus(), loadDemoSummary()]);
-        if (results[0].status !== "fulfilled") {
-          throw results[0].reason;
-        }
-        renderStatus(results[0].value, {status: "OK", text: "API online"});
-        if (results[1].status === "fulfilled") {
-          renderSummary(results[1].value);
-        } else {
-          renderSummary(demoSummary);
-        }
-      } catch (error) {
-        renderUnavailable(error.message);
-        renderSummary(demoSummary);
-      } finally {
-        setText(updated, `Last refreshed: ${new Date().toLocaleString()}`);
-        refreshButton.disabled = false;
+      for (const item of checks.slice(0, 6)) {
+        const status = String(item.status || "WARN");
+        const row = document.createElement("div");
+        const chip = document.createElement("span");
+        const message = document.createElement("span");
+        row.className = "check-row";
+        chip.className = `chip ${status === "OK" ? "ok" : status === "FAIL" ? "fail" : "warn"}`;
+        chip.innerHTML = `<span class="dot"></span>${status}`;
+        message.textContent = String(item.message || "");
+        row.appendChild(chip);
+        row.appendChild(message);
+        readinessList.appendChild(row);
       }
     }
 
-    for (const button of modeButtons) {
-      button.addEventListener("click", () => setMode(button.dataset.mode));
+    async function fetchJson(path) {
+      const response = await fetch(path, {cache: "no-store"});
+      const text = await response.text();
+      let payload = {};
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch (error) {
+        payload = {error: "invalid JSON"};
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || `${path} returned HTTP ${response.status}`);
+      }
+      return payload;
     }
-    refreshButton.addEventListener("click", refreshStatus);
-    refreshStatus();
+
+    async function refreshDashboard() {
+      refreshButton.disabled = true;
+      let summary = fallbackSummary;
+      let statusPayload = null;
+      let apiOnline = false;
+
+      try {
+        await fetchJson("/healthz");
+        apiOnline = true;
+      } catch (error) {
+        apiOnline = false;
+      }
+
+      try {
+        summary = normalizeSummary(await fetchJson("/api/demo-summary"));
+      } catch (error) {
+        summary = fallbackSummary;
+      }
+
+      try {
+        statusPayload = await fetchJson("/api/status");
+      } catch (error) {
+        statusPayload = summary.gateway_status || null;
+      }
+
+      renderMetrics(summary, statusPayload, apiOnline);
+      renderThreats(summary);
+      renderEvents(summary);
+      renderAudit(summary);
+      renderReadiness(summary, statusPayload);
+      setText(updated, `Last refresh: ${new Date().toLocaleString()}`);
+      refreshButton.disabled = false;
+    }
+
+    refreshButton.addEventListener("click", refreshDashboard);
+    refreshDashboard();
   </script>
 </body>
 </html>

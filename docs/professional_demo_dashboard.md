@@ -2,22 +2,42 @@
 
 ## Purpose
 
-The v10.1 Professional Demo Dashboard is a presentation layer for the stable
-v10.0 NetGuard-AI Gateway graduation baseline. It makes the local readiness,
-audit, and classification evidence easier to show in a supervisor demo without
+The v10.2 Professional SOC Dashboard is a presentation layer for the stable
+NetGuard-AI Gateway graduation baseline. It makes the local readiness, audit,
+and classification evidence easier to show in a supervisor demo without
 changing detection logic, risk scoring, model files, thresholds, Zeek
 configuration, firewall rules, services, or training data.
 
+## v10.2 SOC / Stitch Redesign
+
+v10.2 redesigns the local dashboard using the selected Google Stitch
+cybersecurity SOC-style reference in `design_refs/stitch_dashboard/`. The PNG
+reference drove the visual direction: dark SOC workspace, sidebar navigation,
+neon cyan accents, glass-style panels, top metric cards, an inference pipeline,
+classified events table, audit panel, readiness panel, topology card, evidence
+cards, and future productization section.
+
+This is presentation layer only. It does not change the core IDS logic,
+thresholds, risk scoring, training, model files, audit logic, attack
+classification logic, Zeek configuration, firewall rules, services, or data.
+
 ## What The Dashboard Shows
 
-- Gateway readiness cards from the local Gateway Doctor status API.
-- Clear warning and failure counts for demo review.
-- Detection pipeline overview from Zeek logs through dashboard presentation.
+- SOC-style top metric cards for Gateway Status, Risk Level, Actionable Events,
+  API Health, Audit Recommendation, and Smoke Test / Verification.
+- Sidebar navigation for Overview, Threats, Audit, Gateway, Evidence, and
+  Future Work.
+- Active inference pipeline from Zeek Logs through Dashboard presentation.
 - Post-training audit status and retraining recommendation.
 - Attack Classification summary for the saved evidence snapshot.
-- Top classified events with time, source IP, attack type, confidence, risk
+- Recent classified events with time, source IP, attack type, confidence, risk
   score, and reason preview.
-- Demo OK, Demo WARN, and Demo FAIL modes for presentation.
+- Gateway readiness panel with OK/WARN/FAIL counts and honest NOT READY copy
+  when the current environment is not ready.
+- Network topology card showing Internet / Router -> NetGuard-AI Gateway ->
+  Local Network Devices.
+- Evidence/reporting cards for final project check, audit evidence export,
+  classification evidence export, and smoke test.
 - Honest limitations and safety scope.
 
 ## Data Sources
@@ -63,12 +83,13 @@ Stop the dashboard with `Ctrl+C`.
 
 ## Screenshots To Capture
 
-- Professional dashboard overview.
-- Gateway readiness cards.
-- Attack Classification summary.
-- Audit and retraining recommendation panel.
+- Full SOC dashboard overview.
+- Threat classification section.
+- Audit/retraining panel.
+- Gateway readiness panel.
 - Top classified events table.
-- Demo OK, Demo WARN, and Demo FAIL states.
+- Network topology card.
+- Evidence/reporting cards.
 - Smoke test passed output.
 
 ## Limitations
@@ -83,8 +104,8 @@ Stop the dashboard with `Ctrl+C`.
 ## Why Grafana Is Future Work
 
 Grafana would be useful after durable time-series storage, authentication,
-deployment hardening, and operational data retention are added. v10.1 keeps the
+deployment hardening, and operational data retention are added. v10.2 keeps the
 graduation sprint focused on a safe local presentation layer with no external
 services, no new infrastructure, no network dependencies, and no production
 deployment changes. Grafana remains future productization work, not part of this
-read-only demo dashboard sprint.
+read-only SOC dashboard sprint.

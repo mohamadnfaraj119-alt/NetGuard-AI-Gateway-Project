@@ -199,7 +199,7 @@ class GatewayStatusHandler(http.server.BaseHTTPRequestHandler):
 
         self.send_json(200, {
             "project": "NetGuard-AI Gateway",
-            "release": "v10.1-professional-demo-dashboard",
+            "release": "v10.2-soc-dashboard-redesign",
             "read_only": True,
             "local_only": True,
             "demo_snapshot_date": DEMO_SNAPSHOT_DATE,

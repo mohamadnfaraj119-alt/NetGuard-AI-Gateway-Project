@@ -90,3 +90,15 @@ saved Attack Classification evidence visibility. It is not a replacement for
 the v10.0 final graduation baseline and does not change detection logic, risk
 scoring, models, thresholds, training, Zeek configuration, firewall behavior,
 services, or deployment.
+
+## v10.2 SOC Dashboard Redesign Note
+
+v10.2 redesigns the local dashboard using the selected Google Stitch
+cybersecurity SOC-style reference. It improves the visual presentation,
+security overview, attack classification section, audit/retraining panel,
+gateway readiness display, topology card, evidence cards, and supervisor-demo
+screenshot experience.
+
+This is a presentation-layer improvement only. It does not change detection
+logic, risk scoring, models, training, thresholds, Zeek configuration, firewall
+behavior, services, Grafana, Kafka, Telegram, or production deployment.
