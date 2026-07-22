@@ -23,6 +23,8 @@ run_check "PYTHON COMPILE" python3 -m py_compile \
   scripts/window_engine.py \
   scripts/gateway_status_server.py \
   scripts/gateway_status_smoke_test.py \
+  scripts/auth_log_monitor.py \
+  scripts/assess_data.py \
   scripts/post_training_day_audit.py \
   scripts/attack_classifier.py
 
@@ -64,6 +66,47 @@ run_check "V10.2.5 UNIFIED SECTION MARKERS" grep -E \
 run_check "SECTION INDEX NAV MARKERS" grep -E \
   "data-section-target|scrollIntoView|overview|threats|audit-evidence|gateway-roadmap" \
   dashboard/index.html
+
+echo "=== PORTABILITY CHECKS ==="
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+profile = json.loads(Path("config/network_profile.json").read_text(encoding="utf-8"))
+monitored = profile.get("monitored_networks", [])
+if "192.168.50.0/24" not in monitored:
+    raise SystemExit("monitored_networks does not include 192.168.50.0/24")
+print("monitored_networks includes 192.168.50.0/24")
+PY
+then
+  :
+else
+  status=1
+fi
+
+if grep -n 'LAN_PREFIX = "192.168.1."' scripts/window_engine.py; then
+  status=1
+else
+  echo "window_engine.py has no hard-coded LAN_PREFIX for 192.168.1.x"
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+features = json.loads(Path("models/anomaly/feature_names.json").read_text(encoding="utf-8"))
+raw_ip_features = sorted(set(features).intersection({"src_ip", "dst_ip"}))
+if raw_ip_features:
+    raise SystemExit(f"raw IP features found: {', '.join(raw_ip_features)}")
+print("feature_names.json does not use raw src_ip or dst_ip")
+PY
+then
+  :
+else
+  status=1
+fi
+
+echo "Historical demo references to 192.168.1.x may remain in saved evidence and documentation."
 
 run_check "POST-TRAINING AUDIT SUMMARY" \
   python3 scripts/post_training_day_audit.py --summary-only

@@ -967,13 +967,14 @@
               <div class="mini-card"><div class="mini-label">Suspicious rows</div><div class="mini-value" id="live-suspicious-rows">-</div><div class="mini-copy">Detected from today&apos;s risk report</div></div>
               <div class="mini-card"><div class="mini-label">Live local sources</div><div class="mini-value" id="live-local-sources">-</div><div class="mini-copy">192.168.50.x sources observed today</div></div>
             </div>
+            <p class="section-note"><strong>Live Suspicious Events.</strong> Classifications are preliminary and explainable. They indicate suspicious behavior for analyst review, not confirmed attacks.</p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>Time</th>
                     <th>Source IP</th>
-                    <th>Attack Type</th>
+                    <th>Classification</th>
                     <th>Confidence</th>
                     <th>Risk Score</th>
                     <th>Anomaly</th>
@@ -1100,7 +1101,7 @@
                       <tr>
                         <th>Time</th>
                         <th>Source IP</th>
-                        <th>Attack Type</th>
+                        <th>Classification</th>
                         <th>Confidence</th>
                         <th>Risk Score</th>
                         <th>Reason</th>
@@ -1436,7 +1437,7 @@
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.colSpan = 7;
-        cell.textContent = liveThreats?.message || "Monitoring active - no live threats detected yet";
+        cell.textContent = liveThreats?.message || "Monitoring active - no live suspicious events detected yet";
         row.appendChild(cell);
         liveThreatsBody.appendChild(row);
         return;

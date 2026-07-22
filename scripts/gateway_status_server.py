@@ -276,7 +276,7 @@ class GatewayStatusHandler(http.server.BaseHTTPRequestHandler):
         if files_available.get("risk_today"):
             if suspicious_rows:
                 return "Live monitoring active"
-            return "Monitoring active - no live threats detected yet"
+            return "Monitoring active - no live suspicious events detected yet"
         return "Live monitoring active"
 
     def serve_live_summary(self):
@@ -340,7 +340,7 @@ class GatewayStatusHandler(http.server.BaseHTTPRequestHandler):
             message = (
                 "Live monitoring active"
                 if events
-                else "Monitoring active - no live threats detected yet"
+                else "Monitoring active - no live suspicious events detected yet"
             )
             all_events = attack_classifier.all_events([day_summary])
             self.send_json(200, {

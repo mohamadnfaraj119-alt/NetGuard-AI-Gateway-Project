@@ -32,6 +32,7 @@ import time
 import logging
 import argparse
 import subprocess
+import ipaddress
 from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
@@ -43,6 +44,7 @@ REPORT_DIR = BASE_DIR / "data" / "reports"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
+NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 AUTH_LOG   = Path("/var/log/auth.log")
 MONITOR_LOG = LOG_DIR / "auth_monitor.log"
 BANNED_FILE = BASE_DIR / "data" / "baselines" / "banned_ips.json"
@@ -100,9 +102,68 @@ logging.basicConfig(
 log = logging.getLogger("auth_monitor")
 
 
-# ─── الحصول على IPs المحلية (نفس منطق collector.py — لا hardcode) ─────────────
+# ─── الحصول على IPs المحلية من config/network_profile.json عند توفره ────────
+FALLBACK_LOCAL_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+)
+
+
+def _load_network_profile() -> dict:
+    try:
+        with NETWORK_PROFILE.open(encoding="utf-8") as f:
+            profile = json.load(f)
+    except Exception:
+        return {}
+    return profile if isinstance(profile, dict) else {}
+
+
+def get_local_networks() -> tuple:
+    profile = _load_network_profile()
+    candidates = []
+    for key in ("monitored_networks", "trusted_networks"):
+        value = profile.get(key)
+        if isinstance(value, list):
+            candidates.extend(str(item) for item in value)
+
+    lan = profile.get("lan")
+    if isinstance(lan, dict) and lan.get("cidr"):
+        candidates.append(str(lan["cidr"]))
+
+    networks = []
+    for raw_network in candidates:
+        try:
+            network = ipaddress.ip_network(raw_network, strict=False)
+        except ValueError:
+            continue
+        if network.is_private and network not in networks:
+            networks.append(network)
+
+    return tuple(networks) if networks else FALLBACK_LOCAL_NETWORKS
+
+
+def is_local_ip(ip: str) -> bool:
+    try:
+        address = ipaddress.ip_address(str(ip).strip())
+    except ValueError:
+        return False
+    return any(address in network for network in LOCAL_NETWORKS)
+
+
+def get_gateway_ip() -> str:
+    profile = _load_network_profile()
+    lan = profile.get("lan")
+    if isinstance(lan, dict) and lan.get("gateway_ip"):
+        return str(lan["gateway_ip"])
+    gateway = profile.get("gateway")
+    if isinstance(gateway, dict) and gateway.get("gateway_ip"):
+        return str(gateway["gateway_ip"])
+    return str(next(iter(FALLBACK_LOCAL_NETWORKS)).network_address + 1)
+
+
 def get_local_ips() -> set:
-    """يرصد 192.168.1.x تلقائياً من واجهات الشبكة الفعلية."""
+    """يرصد عناوين الجهاز المحلية من الواجهات ويستخدم الشبكات المعرفة في config."""
     local = {"127.0.0.1", "::1"}
     try:
         result = subprocess.run(
@@ -115,11 +176,11 @@ def get_local_ips() -> set:
                 local.add(m.group(1))
     except Exception:
         pass
-    # إضافة نطاق 192.168.1.x كله كـ local (أجهزة المنزل)
-    local.update(f"192.168.1.{i}" for i in range(1, 255))
     return local
 
 
+LOCAL_NETWORKS = get_local_networks()
+GATEWAY_IP = get_gateway_ip()
 LOCAL_IPS = get_local_ips()
 
 
@@ -253,7 +314,7 @@ def _parse_line(line: str):
         if m:
             username, ip = m.group(1), m.group(2)
             # تجاهل IPs محلية (لا نحظر أجهزة المنزل)
-            if ip in LOCAL_IPS:
+            if ip in LOCAL_IPS or is_local_ip(ip):
                 return None
             return ("fail", ip, username)
 
@@ -334,7 +395,7 @@ class AuthLogMonitor:
             return
         self._alerted[ip] = current_level
 
-        victim_ip = "192.168.1.1"  # البوابة هي الضحية في هذا السياق
+        victim_ip = GATEWAY_IP  # البوابة هي الضحية في هذا السياق
         usernames = self._usernames[ip]
 
         # تغذية state_tracker دائماً

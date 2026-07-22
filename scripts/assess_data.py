@@ -12,6 +12,7 @@ import json
 import re
 import argparse
 import warnings
+import ipaddress
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -37,6 +38,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 WINDOWS_DIR   = BASE_DIR / "data" / "windows"
 MODELS_DIR    = BASE_DIR / "models" / "anomaly"
+NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 
 # معايير القبول
 MIN_DAYS          = 3
@@ -72,6 +74,56 @@ def ok(msg):   print(f"  ✅  {msg}")
 def warn(msg): print(f"  ⚠️   {msg}")
 def err(msg):  print(f"  ❌  {msg}")
 def info(msg): print(f"  ℹ️   {msg}")
+
+FALLBACK_LOCAL_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+)
+
+
+def load_monitored_networks() -> tuple:
+    try:
+        with NETWORK_PROFILE.open(encoding="utf-8") as f:
+            profile = json.load(f)
+    except Exception:
+        return FALLBACK_LOCAL_NETWORKS
+
+    candidates = []
+    for key in ("monitored_networks", "trusted_networks"):
+        value = profile.get(key)
+        if isinstance(value, list):
+            candidates.extend(str(item) for item in value)
+
+    lan = profile.get("lan")
+    if isinstance(lan, dict) and lan.get("cidr"):
+        candidates.append(str(lan["cidr"]))
+
+    networks = []
+    for raw_network in candidates:
+        try:
+            network = ipaddress.ip_network(raw_network, strict=False)
+        except ValueError:
+            continue
+        if network.is_private and network not in networks:
+            networks.append(network)
+
+    return tuple(networks) if networks else FALLBACK_LOCAL_NETWORKS
+
+
+def monitored_networks_label() -> str:
+    return ", ".join(str(network) for network in MONITORED_NETWORKS)
+
+
+def is_monitored_ip(value) -> bool:
+    try:
+        address = ipaddress.ip_address(str(value).strip())
+    except ValueError:
+        return False
+    return any(address in network for network in MONITORED_NETWORKS)
+
+
+MONITORED_NETWORKS = load_monitored_networks()
 
 def load_baselines():
     files = sorted(glob.glob(str(PROCESSED_DIR / "baseline_*.csv")))
@@ -407,10 +459,11 @@ def check_per_ip_windows(df_win):
         return [0, 0]
 
     counts = df_win["src_ip"].dropna().astype(str).value_counts()
-    local_counts = counts[counts.index.str.startswith("192.168.1.")]
+    monitored_mask = [is_monitored_ip(ip) for ip in counts.index]
+    local_counts = counts[monitored_mask]
 
     info(f"عدد src_ip في windows: {counts.size}")
-    info(f"عدد أجهزة LAN في windows: {local_counts.size}")
+    info(f"عدد أجهزة LAN في windows ({monitored_networks_label()}): {local_counts.size}")
 
     if local_counts.size >= 2:
         ok("windows مبنية per-IP وليست network-wide")
@@ -503,9 +556,9 @@ def check_network_diversity(df_base):
 
     if src_col:
         local_ips = df_base[src_col].dropna()
-        lan_ips = local_ips[local_ips.astype(str).str.startswith("192.168.1.")]
+        lan_ips = local_ips[local_ips.astype(str).map(is_monitored_ip)]
         unique_lan = lan_ips.nunique()
-        info(f"أجهزة LAN مرصودة (192.168.1.x): {unique_lan}")
+        info(f"أجهزة LAN مرصودة ({monitored_networks_label()}): {unique_lan}")
         
         if unique_lan >= 2:
             ok(f"Gateway يرى {unique_lan} أجهزة — تنوع جيد")
