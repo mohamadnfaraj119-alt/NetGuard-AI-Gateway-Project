@@ -20,6 +20,7 @@ run_check "GIT STATUS" git status --short
 
 run_check "PYTHON COMPILE" python3 -m py_compile \
   scripts/gateway_doctor.py \
+  scripts/window_engine.py \
   scripts/gateway_status_server.py \
   scripts/gateway_status_smoke_test.py \
   scripts/post_training_day_audit.py \
@@ -48,7 +49,7 @@ if find dashboard -maxdepth 2 -type f \( \
   status=1
 fi
 
-if grep -RInE "overview\.html|threats\.html|audit\.html|audit-evidence\.html|gateway\.html|gateway-roadmap\.html|evidence\.html|future\.html|roadmap\.html|href=[\"']/(overview|threats|audit|gateway|evidence|future|roadmap)|window\.location|location\.href|location\.assign|location\.replace|location\.hash\s*=|history\.pushState|scrollIntoView|window\.scrollTo|showPanel|switchPanel|setActivePanel|data-panel-target|data-panel-content" dashboard; then
+if grep -RInE "overview\.html|threats\.html|audit\.html|audit-evidence\.html|gateway\.html|gateway-roadmap\.html|evidence\.html|future\.html|roadmap\.html|href=[\"']/(overview|threats|audit|gateway|evidence|future|roadmap)|window\.location|location\.href|location\.assign|location\.replace|location\.hash\s*=|history\.pushState|window\.scrollTo|showPanel|switchPanel|setActivePanel|data-panel-target|data-panel-content" dashboard; then
   status=1
 fi
 
@@ -58,6 +59,10 @@ fi
 
 run_check "V10.2.5 UNIFIED SECTION MARKERS" grep -E \
   "dashboard-section|Overview|Threats|Audit & Evidence|Gateway & Roadmap" \
+  dashboard/index.html
+
+run_check "SECTION INDEX NAV MARKERS" grep -E \
+  "data-section-target|scrollIntoView|overview|threats|audit-evidence|gateway-roadmap" \
   dashboard/index.html
 
 run_check "POST-TRAINING AUDIT SUMMARY" \

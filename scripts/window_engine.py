@@ -24,11 +24,14 @@ v1.1 (محتفظ):
 """
 
 import argparse
+import json
 import logging
 import math
+import ipaddress
 import sys
 import time
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -39,6 +42,7 @@ BASE_DIR    = Path(__file__).resolve().parent.parent
 DATA_DIR    = BASE_DIR / "data" / "processed"
 WINDOWS_DIR = BASE_DIR / "data" / "windows"
 LOGS_DIR    = BASE_DIR / "logs"
+NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 
 WINDOWS_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -78,19 +82,95 @@ NOISE_DST_IPS = {
 }
 NOISE_PORTS = {137, 138, 139, 5353, 1900, 5355}
 
-# ─── LAN prefix — أجهزة المنزل فقط ─────────────────────────────────────────
-LAN_PREFIX = "192.168.1."
+FALLBACK_LOCAL_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Helper Functions
 # ══════════════════════════════════════════════════════════════════════════════
 
+@lru_cache(maxsize=1)
+def load_local_networks() -> tuple:
+    networks = []
+
+    try:
+        profile = json.loads(NETWORK_PROFILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        log.warning(
+            "⚠️  تعذر تحميل config/network_profile.json؛ استخدام نطاقات LAN الخاصة (%s)",
+            exc,
+        )
+        return FALLBACK_LOCAL_NETWORKS
+
+    candidates = []
+    for key in ("monitored_networks", "trusted_networks"):
+        value = profile.get(key)
+        if isinstance(value, list):
+            candidates.extend(str(item) for item in value)
+
+    lan = profile.get("lan")
+    if isinstance(lan, dict) and lan.get("cidr"):
+        candidates.append(str(lan["cidr"]))
+
+    for raw_network in candidates:
+        try:
+            network = ipaddress.ip_network(raw_network, strict=False)
+        except ValueError:
+            log.warning("⚠️  تجاهل نطاق LAN غير صالح في network_profile: %s", raw_network)
+            continue
+        if not network.is_private:
+            log.warning("⚠️  تجاهل نطاق غير خاص حتى لا يُعامل الإنترنت كـ LAN: %s", network)
+            continue
+        if network not in networks:
+            networks.append(network)
+
+    if not networks:
+        log.warning("⚠️  لا توجد نطاقات LAN صالحة في network_profile؛ استخدام fallback الخاص")
+        return FALLBACK_LOCAL_NETWORKS
+
+    return tuple(networks)
+
+
+def configured_networks_label() -> str:
+    return ", ".join(str(network) for network in load_local_networks())
+
+
+def parse_ip_value(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "null", "-"}:
+        return None
+    try:
+        return ipaddress.ip_address(text)
+    except ValueError:
+        return None
+
+
+def is_local_ip(value) -> bool:
+    ip = parse_ip_value(value)
+    if ip is None:
+        return False
+    return any(ip in network for network in load_local_networks())
+
+
+def configured_noise_dst_ips() -> set[str]:
+    configured_noise = set(NOISE_DST_IPS)
+    for network in load_local_networks():
+        if network.version == 4:
+            configured_noise.add(str(network.broadcast_address))
+    return configured_noise
+
+
 def filter_noise(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     if "dst_ip" in df.columns:
-        df = df[~df["dst_ip"].isin(NOISE_DST_IPS)]
+        df = df[~df["dst_ip"].astype(str).str.strip().isin(configured_noise_dst_ips())]
     if "dst_port" in df.columns:
         df = df[~df["dst_port"].isin(NOISE_PORTS)]
     return df
@@ -98,13 +178,16 @@ def filter_noise(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_local_ips(df: pd.DataFrame) -> list[str]:
     """
-    يستخرج IPs الأجهزة المحلية (192.168.1.x) من البيانات تلقائياً.
-    لا hardcode — القاعدة 19 في الوثيقة.
+    يستخرج IPs الأجهزة المحلية من النطاقات المعرفة في config/network_profile.json.
+    لا يستخدم prefix ثابت؛ fallback آمن إلى نطاقات LAN الخاصة عند غياب config.
     """
     if "src_ip" not in df.columns:
         return []
-    all_ips = df["src_ip"].dropna().unique()
-    local   = [ip for ip in all_ips if str(ip).startswith(LAN_PREFIX)]
+    local = []
+    for raw_ip in df["src_ip"].dropna().unique():
+        parsed = parse_ip_value(raw_ip)
+        if parsed is not None and is_local_ip(parsed):
+            local.append(str(parsed))
     return sorted(local)
 
 
@@ -288,17 +371,22 @@ def process_per_ip(df: pd.DataFrame, step_sec: int = 30) -> pd.DataFrame:
     local_ips = get_local_ips(df)
 
     if not local_ips:
-        log.error("❌ لم يُعثر على IPs محلية (192.168.1.x) في البيانات")
+        log.error(
+            "❌ لم يُعثر على IPs محلية ضمن النطاقات المعرفة: %s",
+            configured_networks_label(),
+        )
         return pd.DataFrame()
 
+    log.info("🧭 نطاقات LAN المستخدمة: %s", configured_networks_label())
     log.info(f"🖥  أجهزة محلية مكتشفة: {len(local_ips)}")
+    src_ips = df["src_ip"].astype("string").fillna("").str.strip()
     for ip in local_ips:
-        n = len(df[df["src_ip"] == ip])
+        n = len(df[src_ips == ip])
         log.info(f"   {ip}: {n:,} flow")
 
     all_frames = []
     for ip in local_ips:
-        df_ip = df[df["src_ip"] == ip].copy()
+        df_ip = df[src_ips == ip].copy()
         df_ip = df_ip.sort_values("ts").reset_index(drop=True)
 
         if len(df_ip) < 10:

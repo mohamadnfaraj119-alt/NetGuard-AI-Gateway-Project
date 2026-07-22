@@ -32,6 +32,10 @@
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -895,10 +899,10 @@
         <div class="side-subtitle">Local read-only SOC view</div>
       </div>
       <nav class="nav">
-        <button class="nav-item active" type="button"><span class="nav-icon">01</span><span>Overview</span></button>
-        <button class="nav-item" type="button"><span class="nav-icon">02</span><span>Threats</span></button>
-        <button class="nav-item" type="button"><span class="nav-icon">03</span><span>Audit & Evidence</span></button>
-        <button class="nav-item" type="button"><span class="nav-icon">04</span><span>Gateway & Roadmap</span></button>
+        <button class="nav-item active" type="button" data-section-target="overview"><span class="nav-icon">01</span><span>Overview</span></button>
+        <button class="nav-item" type="button" data-section-target="threats"><span class="nav-icon">02</span><span>Threats</span></button>
+        <button class="nav-item" type="button" data-section-target="audit-evidence"><span class="nav-icon">03</span><span>Audit & Evidence</span></button>
+        <button class="nav-item" type="button" data-section-target="gateway-roadmap"><span class="nav-icon">04</span><span>Gateway & Roadmap</span></button>
       </nav>
       <div class="sidebar-note">
         <strong>Honest Scope</strong>
@@ -1196,6 +1200,7 @@
     };
 
     const refreshButton = document.getElementById("refresh");
+    const sectionButtons = Array.from(document.querySelectorAll("[data-section-target]"));
     const updated = document.getElementById("updated");
     const gatewayCard = document.getElementById("gateway-card");
     const gatewayStatus = document.getElementById("gateway-status");
@@ -1226,6 +1231,12 @@
 
     function setText(element, value) {
       element.textContent = value;
+    }
+
+    function setActiveSectionButton(activeButton) {
+      for (const button of sectionButtons) {
+        button.classList.toggle("active", button === activeButton);
+      }
     }
 
     function cardState(element, state) {
@@ -1496,6 +1507,17 @@
       renderReadiness(summary, statusPayload);
       setText(updated, `Last refresh: ${new Date().toLocaleString()}`);
       refreshButton.disabled = false;
+    }
+
+    for (const button of sectionButtons) {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const section = document.getElementById(button.dataset.sectionTarget);
+        setActiveSectionButton(button);
+        if (section) {
+          section.scrollIntoView({behavior: "smooth", block: "start"});
+        }
+      });
     }
 
     refreshButton.addEventListener("click", refreshDashboard);

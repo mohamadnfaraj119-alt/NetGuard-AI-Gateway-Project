@@ -7,17 +7,17 @@
     "hostname": "netguard-gateway",
     "wan_interface": "auto",
     "lan_interface": "auto",
-    "gateway_ip": "10.77.0.1"
+    "gateway_ip": "192.168.50.1"
   },
   "lan": {
-    "cidr": "10.77.0.0/24",
-    "gateway_ip": "10.77.0.1",
-    "dhcp_start": "10.77.0.100",
-    "dhcp_end": "10.77.0.200",
-    "ap_management_ip": "10.77.0.254"
+    "cidr": "192.168.50.0/24",
+    "gateway_ip": "192.168.50.1",
+    "dhcp_start": "192.168.50.50",
+    "dhcp_end": "192.168.50.200",
+    "ap_management_ip": "192.168.50.2"
   },
   "trusted_networks": [
-    "10.77.0.0/24"
+    "192.168.50.0/24"
   ],
   "zeek": {
     "log_dir": "/opt/zeek/logs/current",
@@ -30,8 +30,8 @@
     "logs_dir": "logs",
     "models_dir": "models"
   },
-  "gateway_ip": "10.77.0.1",
+  "gateway_ip": "192.168.50.1",
   "monitored_networks": [
-    "10.77.0.0/24"
+    "192.168.50.0/24"
   ]
 }
