@@ -158,40 +158,93 @@ def check_demo_summary(base_url):
     return True
 
 
-def check_post_rejected(base_url):
-    status, _content_type, _body, error = request(base_url, "/api/status", method="POST")
+def check_live_summary(base_url):
+    status, _content_type, body, error = request(base_url, "/api/live-summary")
     if error:
-        fail(request_failure("POST", "/api/status", error))
+        fail(request_failure("GET", "/api/live-summary", error))
+        return False
+    if status != 200:
+        fail(f"GET /api/live-summary returned HTTP {status}, expected 200")
+        return False
+
+    payload = parse_json(body)
+    required = {"current_date", "live_mode", "files_available", "traffic_summary", "status_message"}
+    if not isinstance(payload, dict):
+        fail("GET /api/live-summary did not return a JSON object")
+        return False
+    missing = sorted(required - payload.keys())
+    if missing:
+        fail(
+            "GET /api/live-summary JSON contract may have changed; "
+            f"missing required keys: {', '.join(missing)}"
+        )
+        return False
+    if payload.get("live_mode") is not True:
+        fail("GET /api/live-summary returned unexpected live_mode field")
+        return False
+
+    ok("GET /api/live-summary returned HTTP 200 with expected JSON keys")
+    return True
+
+
+def check_live_threats(base_url):
+    status, _content_type, body, error = request(base_url, "/api/live-threats")
+    if error:
+        fail(request_failure("GET", "/api/live-threats", error))
+        return False
+    if status != 200:
+        fail(f"GET /api/live-threats returned HTTP {status}, expected 200")
+        return False
+
+    payload = parse_json(body)
+    required = {"current_date", "available", "message", "events", "summary"}
+    if not isinstance(payload, dict):
+        fail("GET /api/live-threats did not return a JSON object")
+        return False
+    missing = sorted(required - payload.keys())
+    if missing:
+        fail(
+            "GET /api/live-threats JSON contract may have changed; "
+            f"missing required keys: {', '.join(missing)}"
+        )
+        return False
+    if not isinstance(payload.get("events"), list):
+        fail("GET /api/live-threats events field is not a list")
+        return False
+
+    ok("GET /api/live-threats returned HTTP 200 with expected JSON keys")
+    return True
+
+
+def check_post_rejected_path(base_url, path):
+    status, _content_type, _body, error = request(base_url, path, method="POST")
+    if error:
+        fail(request_failure("POST", path, error))
         return False
     if status != 405:
         fail(
-            f"POST /api/status returned HTTP {status}, expected 405; "
+            f"POST {path} returned HTTP {status}, expected 405; "
             "write methods should remain rejected"
         )
         return False
 
-    ok("POST /api/status returned HTTP 405 Method Not Allowed")
+    ok(f"POST {path} returned HTTP 405 Method Not Allowed")
     return True
+
+
+def check_post_rejected(base_url):
+    return check_post_rejected_path(base_url, "/api/status")
 
 
 def check_demo_summary_post_rejected(base_url):
-    status, _content_type, _body, error = request(
-        base_url,
-        "/api/demo-summary",
-        method="POST",
-    )
-    if error:
-        fail(request_failure("POST", "/api/demo-summary", error))
-        return False
-    if status != 405:
-        fail(
-            f"POST /api/demo-summary returned HTTP {status}, expected 405; "
-            "write methods should remain rejected"
-        )
-        return False
+    return check_post_rejected_path(base_url, "/api/demo-summary")
 
-    ok("POST /api/demo-summary returned HTTP 405 Method Not Allowed")
-    return True
+def check_live_summary_post_rejected(base_url):
+    return check_post_rejected_path(base_url, "/api/live-summary")
+
+
+def check_live_threats_post_rejected(base_url):
+    return check_post_rejected_path(base_url, "/api/live-threats")
 
 
 def parse_args():
@@ -209,8 +262,12 @@ def main():
         check_api_status,
         check_dashboard,
         check_demo_summary,
+        check_live_summary,
+        check_live_threats,
         check_post_rejected,
         check_demo_summary_post_rejected,
+        check_live_summary_post_rejected,
+        check_live_threats_post_rejected,
     )
 
     results = [check(args.base_url) for check in checks]

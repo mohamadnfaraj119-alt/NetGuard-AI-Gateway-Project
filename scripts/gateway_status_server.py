@@ -4,16 +4,23 @@ Minimal read-only Gateway Status API + Dashboard server.
 """
 
 import argparse
+import csv
 import http.server
+import ipaddress
 import json
 import pathlib
 import subprocess
 import sys
+from datetime import datetime
 
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 DASHBOARD_INDEX = BASE_DIR / "dashboard" / "index.html"
 GATEWAY_DOCTOR = BASE_DIR / "scripts" / "gateway_doctor.py"
+PROCESSED_DIR = BASE_DIR / "data" / "processed"
+WINDOWS_DIR = BASE_DIR / "data" / "windows"
+REPORTS_DIR = BASE_DIR / "data" / "reports"
+NETWORK_PROFILE = BASE_DIR / "config" / "network_profile.json"
 DEMO_SNAPSHOT_DATE = "2026-06-20"
 DEMO_EVIDENCE_CACHE = None
 
@@ -36,6 +43,10 @@ class GatewayStatusHandler(http.server.BaseHTTPRequestHandler):
             self.serve_status()
         elif path == "/api/demo-summary":
             self.serve_demo_summary()
+        elif path == "/api/live-summary":
+            self.serve_live_summary()
+        elif path == "/api/live-threats":
+            self.serve_live_threats()
         elif path == "/healthz":
             self.send_json(200, {"status": "ok"})
         else:
@@ -161,6 +172,205 @@ class GatewayStatusHandler(http.server.BaseHTTPRequestHandler):
             "calibration_note": attack_classifier.CALIBRATION_NOTE,
             "retraining_note": attack_classifier.RETRAINING_NOTE,
         }
+
+    def today(self):
+        return datetime.now().strftime("%Y-%m-%d")
+
+    def live_paths(self, day):
+        return {
+            "processed_today": PROCESSED_DIR / f"baseline_{day}.csv",
+            "windows_today": WINDOWS_DIR / f"windows_{day}.csv",
+            "risk_today": REPORTS_DIR / f"risk_{day}.csv",
+        }
+
+    def csv_row_count(self, path):
+        if not path.exists():
+            return 0
+        try:
+            with path.open("r", encoding="utf-8", newline="") as fh:
+                reader = csv.reader(fh)
+                next(reader, None)
+                return sum(1 for _row in reader)
+        except OSError:
+            return 0
+
+    def live_file_times(self, paths):
+        times = {}
+        for key, path in paths.items():
+            if path.exists():
+                try:
+                    times[key] = datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds")
+                except OSError:
+                    pass
+        return times
+
+    def configured_local_networks(self):
+        networks = []
+        try:
+            profile = json.loads(NETWORK_PROFILE.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return [ipaddress.ip_network("192.168.0.0/16")]
+
+        candidates = []
+        for key in ("monitored_networks", "trusted_networks"):
+            value = profile.get(key)
+            if isinstance(value, list):
+                candidates.extend(str(item) for item in value)
+
+        lan = profile.get("lan")
+        if isinstance(lan, dict) and lan.get("cidr"):
+            candidates.append(str(lan["cidr"]))
+
+        for raw_network in candidates:
+            try:
+                network = ipaddress.ip_network(raw_network, strict=False)
+            except ValueError:
+                continue
+            if network.is_private and network not in networks:
+                networks.append(network)
+
+        return networks or [ipaddress.ip_network("192.168.0.0/16")]
+
+    def is_configured_local_ip(self, value, networks=None):
+        try:
+            address = ipaddress.ip_address(str(value).strip())
+        except ValueError:
+            return False
+        if networks is None:
+            networks = self.configured_local_networks()
+        return any(address in network for network in networks)
+
+    def local_source_ips(self, path):
+        if not path.exists():
+            return []
+        values = set()
+        networks = self.configured_local_networks()
+        try:
+            with path.open("r", encoding="utf-8", newline="") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    src_ip = attack_classifier.row_value(row, "src_ip")
+                    if src_ip and self.is_configured_local_ip(src_ip, networks):
+                        values.add(src_ip)
+        except OSError:
+            return []
+        return sorted(values)
+
+    def suspicious_count(self, path):
+        if not path.exists():
+            return 0
+        count = 0
+        try:
+            with path.open("r", encoding="utf-8", newline="") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    if attack_classifier.is_suspicious_row(row):
+                        count += 1
+        except OSError:
+            return 0
+        return count
+
+    def live_status_message(self, files_available, suspicious_rows):
+        if not any(files_available.values()):
+            return "Waiting for live pipeline output"
+        if files_available.get("risk_today"):
+            if suspicious_rows:
+                return "Live monitoring active"
+            return "Monitoring active - no live threats detected yet"
+        return "Live monitoring active"
+
+    def serve_live_summary(self):
+        day = self.today()
+        paths = self.live_paths(day)
+        files_available = {key: path.exists() for key, path in paths.items()}
+        processed_rows = self.csv_row_count(paths["processed_today"])
+        windows_rows = self.csv_row_count(paths["windows_today"])
+        risk_rows = self.csv_row_count(paths["risk_today"])
+        suspicious_rows = self.suspicious_count(paths["risk_today"])
+        local_ips = self.local_source_ips(paths["risk_today"])
+        if not local_ips:
+            local_ips = self.local_source_ips(paths["processed_today"])
+
+        self.send_json(200, {
+            "current_date": day,
+            "live_mode": True,
+            "files_available": files_available,
+            "latest_file_times": self.live_file_times(paths),
+            "traffic_summary": {
+                "processed_rows": processed_rows,
+                "windows_rows": windows_rows,
+                "risk_rows": risk_rows,
+                "suspicious_rows": suspicious_rows,
+                "local_source_ips": local_ips,
+            },
+            "status_message": self.live_status_message(files_available, suspicious_rows),
+            "read_only": True,
+            "local_only": True,
+        })
+
+    def serve_live_threats(self):
+        day = self.today()
+        risk_file = REPORTS_DIR / f"risk_{day}.csv"
+
+        if not risk_file.exists():
+            self.send_json(200, {
+                "current_date": day,
+                "available": False,
+                "message": "Waiting for live pipeline output",
+                "events": [],
+                "summary": {
+                    "risk_rows": 0,
+                    "suspicious_rows": 0,
+                    "classified_rows": 0,
+                    "attack_type_counts": {},
+                    "high_confidence_counts": {},
+                    "likely_actionable_events": 0,
+                },
+                "read_only": True,
+                "local_only": True,
+            })
+            return
+
+        try:
+            day_summary = attack_classifier.audit_day(day, set())
+            events = attack_classifier.top_display_events(
+                attack_classifier.all_events([day_summary]),
+                10,
+            )
+            message = (
+                "Live monitoring active"
+                if events
+                else "Monitoring active - no live threats detected yet"
+            )
+            all_events = attack_classifier.all_events([day_summary])
+            self.send_json(200, {
+                "current_date": day,
+                "available": True,
+                "message": message,
+                "events": events,
+                "summary": {
+                    "risk_rows": day_summary["risk_rows"],
+                    "suspicious_rows": day_summary["suspicious_rows"],
+                    "classified_rows": day_summary["classified_rows"],
+                    "attack_type_counts": day_summary["attack_type_counts"],
+                    "high_confidence_counts": attack_classifier.high_confidence_counts(all_events),
+                    "likely_actionable_events": len(attack_classifier.likely_actionable_events(all_events)),
+                    "top_src_ip_counts": day_summary["top_src_ip_counts"],
+                },
+                "classification_note": attack_classifier.CLASSIFICATION_NOTE,
+                "read_only": True,
+                "local_only": True,
+            })
+        except Exception as exc:
+            self.send_json(200, {
+                "current_date": day,
+                "available": False,
+                "message": f"Live risk report is present but could not be classified: {exc}",
+                "events": [],
+                "summary": {},
+                "read_only": True,
+                "local_only": True,
+            })
 
     def serve_demo_summary(self):
         global DEMO_EVIDENCE_CACHE

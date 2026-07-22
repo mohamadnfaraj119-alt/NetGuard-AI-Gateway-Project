@@ -543,6 +543,21 @@
       margin-bottom: 14px;
     }
 
+    .live-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .live-status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
     .threat-list {
       display: grid;
       gap: 12px;
@@ -792,6 +807,10 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
+      .live-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
       .pipeline {
         grid-template-columns: repeat(4, minmax(0, 1fr));
       }
@@ -854,6 +873,7 @@
       }
 
       .metrics,
+      .live-grid,
       .pipeline,
       .audit-grid,
       .readiness-grid,
@@ -928,6 +948,46 @@
       </header>
 
       <main class="content dashboard-main">
+        <section class="panel" aria-label="Live monitoring">
+          <div class="panel-header">
+            <h2>LIVE MONITORING</h2>
+            <span class="chip info" id="live-monitoring-chip"><span class="dot"></span>Waiting for live pipeline output</span>
+          </div>
+          <div class="panel-body">
+            <div class="live-status-line">
+              <span class="chip info" id="live-date"><span class="dot"></span>Today</span>
+              <span class="chip info" id="live-gateway-readiness"><span class="dot"></span>Gateway readiness pending</span>
+              <span class="chip info" id="live-files"><span class="dot"></span>Files pending</span>
+            </div>
+            <p class="section-note" id="live-monitoring-note">Live monitoring uses today&apos;s local pipeline files only. Saved demo evidence remains separate below.</p>
+            <div class="live-grid">
+              <div class="mini-card"><div class="mini-label">Processed rows</div><div class="mini-value" id="live-processed-rows">-</div><div class="mini-copy">data/processed baseline for today</div></div>
+              <div class="mini-card"><div class="mini-label">Window rows</div><div class="mini-value" id="live-windows-rows">-</div><div class="mini-copy">data/windows output for today</div></div>
+              <div class="mini-card"><div class="mini-label">Risk rows</div><div class="mini-value" id="live-risk-rows">-</div><div class="mini-copy">data/reports risk report for today</div></div>
+              <div class="mini-card"><div class="mini-label">Suspicious rows</div><div class="mini-value" id="live-suspicious-rows">-</div><div class="mini-copy">Detected from today&apos;s risk report</div></div>
+              <div class="mini-card"><div class="mini-label">Live local sources</div><div class="mini-value" id="live-local-sources">-</div><div class="mini-copy">192.168.50.x sources observed today</div></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Source IP</th>
+                    <th>Attack Type</th>
+                    <th>Confidence</th>
+                    <th>Risk Score</th>
+                    <th>Anomaly</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="live-threats-body">
+                  <tr><td colspan="7">Waiting for live pipeline output.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <section class="dashboard-section" id="overview" aria-label="Overview dashboard section">
           <section class="grid metrics" aria-label="SOC overview metrics">
             <article class="metric-card info" id="gateway-card">
@@ -936,19 +996,19 @@
               <div class="metric-meta" id="gateway-meta">Current live gateway readiness</div>
             </article>
             <article class="metric-card warn" id="risk-card">
-              <div class="metric-label">Risk Level</div>
+              <div class="metric-label">Saved Demo Risk Level</div>
               <div class="metric-value" id="risk-level">Review</div>
-              <div class="metric-meta" id="risk-meta">Evidence snapshot from saved risk reports.</div>
+              <div class="metric-meta" id="risk-meta">Saved Demo Evidence - 2026-06-20.</div>
             </article>
             <article class="metric-card purple">
-              <div class="metric-label">Likely Actionable Events</div>
+              <div class="metric-label">Saved Demo Actionable Events</div>
               <div class="metric-value" id="actionable-events">-</div>
-              <div class="metric-meta">High-confidence non-low-signal events</div>
+              <div class="metric-meta">High-confidence non-low-signal demo events</div>
             </article>
             <article class="metric-card info" id="api-card">
               <div class="metric-label">API Health</div>
               <div class="metric-value" id="api-health">Pending</div>
-              <div class="metric-meta">GET /healthz, /api/status, /api/demo-summary</div>
+              <div class="metric-meta">GET /healthz, /api/status, /api/live-summary, /api/live-threats</div>
             </article>
             <article class="metric-card purple">
               <div class="metric-label">Audit Recommendation</div>
@@ -1019,7 +1079,7 @@
           <section class="grid two-column">
             <section class="panel" aria-label="Threat classification summary">
               <div class="panel-header">
-                <h2>Threat Classification Summary</h2>
+                <h2>Saved Demo Evidence - 2026-06-20</h2>
                 <span class="chip purple" id="snapshot-date"><span class="dot"></span>Evidence snapshot</span>
               </div>
               <div class="panel-body">
@@ -1030,7 +1090,7 @@
 
             <section class="panel" aria-label="Recent classified events table">
               <div class="panel-header">
-                <h2>Recent Classified Events</h2>
+                <h2>Saved Demo Classified Events</h2>
                 <span class="chip info"><span class="dot"></span>Preliminary explainable classification</span>
               </div>
               <div class="panel-body">
@@ -1202,6 +1262,17 @@
     const refreshButton = document.getElementById("refresh");
     const sectionButtons = Array.from(document.querySelectorAll("[data-section-target]"));
     const updated = document.getElementById("updated");
+    const liveMonitoringChip = document.getElementById("live-monitoring-chip");
+    const liveDate = document.getElementById("live-date");
+    const liveGatewayReadiness = document.getElementById("live-gateway-readiness");
+    const liveFiles = document.getElementById("live-files");
+    const liveMonitoringNote = document.getElementById("live-monitoring-note");
+    const liveProcessedRows = document.getElementById("live-processed-rows");
+    const liveWindowsRows = document.getElementById("live-windows-rows");
+    const liveRiskRows = document.getElementById("live-risk-rows");
+    const liveSuspiciousRows = document.getElementById("live-suspicious-rows");
+    const liveLocalSources = document.getElementById("live-local-sources");
+    const liveThreatsBody = document.getElementById("live-threats-body");
     const gatewayCard = document.getElementById("gateway-card");
     const gatewayStatus = document.getElementById("gateway-status");
     const gatewayMeta = document.getElementById("gateway-meta");
@@ -1237,6 +1308,11 @@
       for (const button of sectionButtons) {
         button.classList.toggle("active", button === activeButton);
       }
+    }
+
+    function setChip(element, state, label) {
+      element.className = `chip ${state}`;
+      element.innerHTML = `<span class="dot"></span>${label}`;
     }
 
     function cardState(element, state) {
@@ -1315,6 +1391,82 @@
       cardState(apiCard, apiOnline ? "ok" : "fail");
       setText(apiHealth, apiOnline ? "Online" : "Offline");
       setText(auditRecommendation, summarizeRecommendation(audit.recommendation));
+    }
+
+    function formatCount(value) {
+      const number = Number(value || 0);
+      return Number.isFinite(number) ? number.toLocaleString() : "-";
+    }
+
+    function renderLiveMonitoring(statusPayload, liveSummary, liveThreats, apiOnline) {
+      const gateway = statusPayload && typeof statusPayload === "object" ? statusPayload : null;
+      const gatewayResult = gateway ? gateway.final_result : "Unavailable";
+      const gatewayState = gateway ? statusFromResult(gatewayResult) : "fail";
+      const files = liveSummary && liveSummary.files_available ? liveSummary.files_available : {};
+      const traffic = liveSummary && liveSummary.traffic_summary ? liveSummary.traffic_summary : {};
+      const fileCount = ["processed_today", "windows_today", "risk_today"]
+        .filter((key) => files[key]).length;
+      const suspicious = Number(traffic.suspicious_rows || 0);
+      const message = liveThreats?.message || liveSummary?.status_message || "Waiting for live pipeline output";
+      const liveState = fileCount === 0 ? "warn" : suspicious > 0 ? "warn" : "ok";
+      const localSources = Array.isArray(traffic.local_source_ips)
+        ? traffic.local_source_ips
+        : [];
+
+      setChip(liveMonitoringChip, liveState, message);
+      setChip(liveDate, "info", `Live date ${liveSummary?.current_date || liveThreats?.current_date || "today"}`);
+      setChip(liveGatewayReadiness, gatewayState, `Gateway ${shortGatewayLabel(gatewayResult)}`);
+      setChip(liveFiles, fileCount === 3 ? "ok" : fileCount > 0 ? "warn" : "fail", `${fileCount}/3 live files`);
+      setText(liveMonitoringNote, `${message}. Live data is read from today&apos;s local pipeline files only; saved demo evidence remains separate below.`.replace("&apos;", "'"));
+      setText(liveProcessedRows, formatCount(traffic.processed_rows));
+      setText(liveWindowsRows, formatCount(traffic.windows_rows));
+      setText(liveRiskRows, formatCount(traffic.risk_rows));
+      setText(liveSuspiciousRows, formatCount(traffic.suspicious_rows));
+      setText(liveLocalSources, localSources.length ? localSources.join(", ") : "-");
+      cardState(apiCard, apiOnline ? "ok" : "fail");
+
+      renderLiveThreatRows(liveThreats);
+    }
+
+    function renderLiveThreatRows(liveThreats) {
+      const events = liveThreats && Array.isArray(liveThreats.events) ? liveThreats.events : [];
+      liveThreatsBody.innerHTML = "";
+
+      if (!events.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 7;
+        cell.textContent = liveThreats?.message || "Monitoring active - no live threats detected yet";
+        row.appendChild(cell);
+        liveThreatsBody.appendChild(row);
+        return;
+      }
+
+      for (const event of events) {
+        const row = document.createElement("tr");
+        const reason = Array.isArray(event.reasons) && event.reasons.length
+          ? event.reasons.slice(0, 2).join("; ")
+          : "Live risk report event.";
+        const values = [
+          event.time || "n/a",
+          event.src_ip || "n/a",
+          event.attack_type || "UNKNOWN_SUSPICIOUS",
+          Number(event.confidence || 0).toFixed(2),
+          Number(event.risk_score || 0).toFixed(2),
+          Number(event.anomaly_score || 0).toFixed(4),
+          reason
+        ];
+
+        values.forEach((value, index) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          if (index === 6) {
+            cell.className = "reason";
+          }
+          row.appendChild(cell);
+        });
+        liveThreatsBody.appendChild(row);
+      }
     }
 
     function summarizeRecommendation(text) {
@@ -1461,7 +1613,8 @@
     }
 
     async function fetchJson(path) {
-      const response = await fetch(path, {cache: "no-store"});
+      const separator = path.includes("?") ? "&" : "?";
+      const response = await fetch(`${path}${separator}t=${Date.now()}`, {cache: "no-store"});
       const text = await response.text();
       let payload = {};
       try {
@@ -1475,9 +1628,13 @@
       return payload;
     }
 
-    async function refreshDashboard() {
-      refreshButton.disabled = true;
+    async function refreshDashboard(manual = false) {
+      if (manual) {
+        refreshButton.disabled = true;
+      }
       let summary = fallbackSummary;
+      let liveSummary = null;
+      let liveThreats = null;
       let statusPayload = null;
       let apiOnline = false;
 
@@ -1495,18 +1652,33 @@
       }
 
       try {
+        liveSummary = await fetchJson("/api/live-summary");
+      } catch (error) {
+        liveSummary = null;
+      }
+
+      try {
+        liveThreats = await fetchJson("/api/live-threats");
+      } catch (error) {
+        liveThreats = null;
+      }
+
+      try {
         statusPayload = await fetchJson("/api/status");
       } catch (error) {
         statusPayload = summary.gateway_status || null;
       }
 
+      renderLiveMonitoring(statusPayload, liveSummary, liveThreats, apiOnline);
       renderMetrics(summary, statusPayload, apiOnline);
       renderThreats(summary);
       renderEvents(summary);
       renderAudit(summary);
       renderReadiness(summary, statusPayload);
       setText(updated, `Last refresh: ${new Date().toLocaleString()}`);
-      refreshButton.disabled = false;
+      if (manual) {
+        refreshButton.disabled = false;
+      }
     }
 
     for (const button of sectionButtons) {
@@ -1520,8 +1692,9 @@
       });
     }
 
-    refreshButton.addEventListener("click", refreshDashboard);
-    refreshDashboard();
+    refreshButton.addEventListener("click", () => refreshDashboard(true));
+    refreshDashboard(true);
+    window.setInterval(() => refreshDashboard(false), 10000);
   </script>
 </body>
 </html>
