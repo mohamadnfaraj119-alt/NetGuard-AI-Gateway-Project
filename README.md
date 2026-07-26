@@ -683,6 +683,54 @@ but it cannot prove that a candidate is production-ready. Threshold and model
 changes must wait until normal false-positive evidence is compared with labeled
 attack-retention evidence.
 
+## Ground-Truth Session Recording
+
+`scripts/ground_truth_session.py` records exact lab-session boundaries for
+normal and controlled attack observations. The recorder captures timestamps,
+source IPs, expected classifications, service readiness, model/source metadata,
+and CSV row boundaries. It never generates attacks, scans, login attempts, DNS
+bursts, or other traffic.
+
+Start and stop a known-normal session:
+
+```bash
+python3 scripts/ground_truth_session.py start \
+  --label normal \
+  --source-ip 192.168.50.95 \
+  --scenario phone_idle_normal \
+  --notes "Known-normal idle phone observation"
+
+python3 scripts/ground_truth_session.py stop
+```
+
+Start and stop a controlled attack session only on owned lab systems:
+
+```bash
+python3 scripts/ground_truth_session.py start \
+  --label attack \
+  --expected-class PORT_SCAN \
+  --source-ip 192.168.50.95 \
+  --scenario controlled_port_scan \
+  --notes "Controlled lab test with exact operator notes"
+
+python3 scripts/ground_truth_session.py stop
+```
+
+Check and export:
+
+```bash
+python3 scripts/ground_truth_session.py status
+python3 scripts/ground_truth_session.py list
+python3 scripts/ground_truth_session.py export \
+  --output config/detection_ground_truth_manifest.local.json
+```
+
+Real session records are stored under `data/ground_truth/` and local exported
+manifests should remain uncommitted. Keep Telegram alerts disabled during
+calibration so alert side effects do not distract from controlled evidence
+collection. Use the exported manifest with
+`scripts/detection_rule_calibrator.py --attack-manifest ...`.
+
 ## Optional Telegram Alerts
 
 `scripts/telegram_alert_notifier.py` can send Telegram notifications for new
