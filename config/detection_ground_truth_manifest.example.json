@@ -1,0 +1,13 @@
+{
+  "sessions": [
+    {
+      "date": "2026-06-20",
+      "label": "attack",
+      "expected_classes": ["PORT_SCAN"],
+      "source_ips": [],
+      "time_start": null,
+      "time_end": null,
+      "notes": "Template only. Fill with verified controlled-test evidence before using for recall."
+    }
+  ]
+}

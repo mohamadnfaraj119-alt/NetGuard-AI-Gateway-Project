@@ -658,6 +658,31 @@ Use this audit before any threshold, model, or classification changes. The
 report separates observed facts, inference, and recommended investigation, and
 does not claim that any classification is a confirmed attack.
 
+## Offline Detection Rule Calibration
+
+`scripts/detection_rule_calibrator.py` replays the current classifier and
+candidate rule policies against existing risk reports without changing
+production code. It is intended for evidence gathering after a false-positive
+audit, especially when known-normal traffic shows heuristic-driven suspicious
+classifications.
+
+Known-normal replay:
+
+```bash
+python3 scripts/detection_rule_calibrator.py \
+  --normal-date 2026-07-26
+```
+
+Attack retention requires scoped ground truth. Use
+`config/detection_ground_truth_manifest.example.json` as a template and fill in
+verified controlled-test dates, expected classes, source IPs, and time bounds.
+Do not assume that an entire historical date is an attack.
+
+Normal traffic alone can show which candidate policies reduce false positives,
+but it cannot prove that a candidate is production-ready. Threshold and model
+changes must wait until normal false-positive evidence is compared with labeled
+attack-retention evidence.
+
 ## Optional Telegram Alerts
 
 `scripts/telegram_alert_notifier.py` can send Telegram notifications for new
