@@ -1,0 +1,28 @@
+# Project-local systemd unit template for optional Telegram alerts.
+# Do not install or enable from automation. Manual install commands:
+#   sudo install -o root -g root -m 0644 /home/mtech/zeek-ids/systemd/netguard-telegram-alerts.service /etc/systemd/system/
+#   sudo mkdir -p /etc/netguard-ai
+#   sudo install -o root -g root -m 0600 /home/mtech/zeek-ids/config/telegram_alerts.env.example /etc/netguard-ai/telegram-alerts.env
+#   sudo editor /etc/netguard-ai/telegram-alerts.env
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now netguard-telegram-alerts.service
+#   sudo systemctl status netguard-telegram-alerts.service
+
+[Unit]
+Description=NetGuard-AI Telegram Suspicious Event Alerts
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/mtech/zeek-ids
+EnvironmentFile=/etc/netguard-ai/telegram-alerts.env
+ExecStart=/home/mtech/zeek-ids/venv/bin/python -u scripts/telegram_alert_notifier.py --interval 30
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/mtech/zeek-ids/logs/telegram_alert_notifier.log
+StandardError=append:/home/mtech/zeek-ids/logs/telegram_alert_notifier.log
+
+[Install]
+WantedBy=multi-user.target

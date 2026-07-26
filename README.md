@@ -639,6 +639,61 @@ Reports now include a `High Confidence Summary` and `Likely Actionable Events`
 count. Top classified events prioritize higher-confidence non-low-signal labels
 so `LOW_SIGNAL_REVIEW` does not dominate when stronger classifications exist.
 
+## Optional Telegram Alerts
+
+`scripts/telegram_alert_notifier.py` can send Telegram notifications for new
+high-confidence live suspicious events from today's risk report. Telegram is
+optional; without credentials, normal NetGuard-AI monitoring and dashboard
+workflows continue unchanged.
+
+Credentials are read only from environment variables:
+
+```bash
+NETGUARD_TELEGRAM_BOT_TOKEN=replace-with-bot-token
+NETGUARD_TELEGRAM_CHAT_ID=replace-with-chat-id
+```
+
+Setup:
+
+```bash
+# 1. Create a bot with @BotFather, then send /start to the bot.
+# 2. Get chat_id from:
+#    https://api.telegram.org/bot<token>/getUpdates
+
+sudo mkdir -p /etc/netguard-ai
+sudo cp config/telegram_alerts.env.example /etc/netguard-ai/telegram-alerts.env
+sudo chown root:root /etc/netguard-ai/telegram-alerts.env
+sudo chmod 600 /etc/netguard-ai/telegram-alerts.env
+sudo editor /etc/netguard-ai/telegram-alerts.env
+```
+
+Test and dry run:
+
+```bash
+python3 scripts/telegram_alert_notifier.py --test
+python3 scripts/telegram_alert_notifier.py --once --dry-run
+```
+
+Continuous local run:
+
+```bash
+python3 scripts/telegram_alert_notifier.py --interval 30
+```
+
+A systemd unit template is provided at
+`systemd/netguard-telegram-alerts.service`. Install and start it only with
+explicit administrator commands:
+
+```bash
+sudo cp systemd/netguard-telegram-alerts.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now netguard-telegram-alerts.service
+```
+
+The notifier stores sent-alert fingerprints in
+`logs/telegram_alert_state.json` to avoid duplicate alerts after restart. The
+bot token is never stored in that state file.
+
 ## Final Demo Verification
 
 Run the final project check before demo or submission:
