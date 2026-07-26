@@ -639,6 +639,25 @@ Reports now include a `High Confidence Summary` and `Likely Actionable Events`
 count. Top classified events prioritize higher-confidence non-low-signal labels
 so `LOW_SIGNAL_REVIEW` does not dominate when stronger classifications exist.
 
+## Detection Accuracy Audit
+
+`scripts/detection_accuracy_audit.py` is a read-only audit tool for measuring
+why known-normal or labeled observation windows are being classified as
+suspicious. It reads existing processed, window, and risk report CSV files and
+writes derived audit outputs under `data/audit/detection_accuracy_<date>/`.
+
+Known-normal false-positive audit:
+
+```bash
+python3 scripts/detection_accuracy_audit.py \
+  --date 2026-07-26 \
+  --label normal
+```
+
+Use this audit before any threshold, model, or classification changes. The
+report separates observed facts, inference, and recommended investigation, and
+does not claim that any classification is a confirmed attack.
+
 ## Optional Telegram Alerts
 
 `scripts/telegram_alert_notifier.py` can send Telegram notifications for new
