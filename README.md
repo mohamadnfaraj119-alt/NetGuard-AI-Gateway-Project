@@ -673,15 +673,36 @@ python3 scripts/detection_rule_calibrator.py \
   --normal-date 2026-07-26
 ```
 
+Manifest-scoped normal replay:
+
+```bash
+python3 scripts/detection_rule_calibrator.py \
+  --normal-manifest data/ground_truth/manifest.json
+```
+
+Use `--normal-manifest` when a date contains mixed normal and attack traffic.
+The calibrator then loads only completed `label=normal` sessions with valid
+risk row boundaries, filters them to the recorded source IPs, and deduplicates
+overlapping session rows. Sessions with zero added risk rows, missing source
+IPs, missing risk CSVs, or invalid boundaries are excluded and reported.
+
 Attack retention requires scoped ground truth. Use
 `config/detection_ground_truth_manifest.example.json` as a template and fill in
 verified controlled-test dates, expected classes, source IPs, and time bounds.
-Do not assume that an entire historical date is an attack.
+Do not assume that an entire historical date is normal or attack traffic.
 
 Normal traffic alone can show which candidate policies reduce false positives,
 but it cannot prove that a candidate is production-ready. Threshold and model
 changes must wait until normal false-positive evidence is compared with labeled
 attack-retention evidence.
+
+The offline calibrator also reports a narrow
+`validated_portscan_alert_tier`. This keeps row-level review classifications
+visible, but treats only validated `PORT_SCAN` rows with `flag_port_scan` and
+at least 20 unique destination ports as actionable alerts. Other suspicious
+classes remain review-only until class-specific controlled attack evidence
+exists. This staged tier is evidence for a later runtime test only; it does not
+modify production detection, scoring, Telegram filtering, or service behavior.
 
 ## Ground-Truth Session Recording
 

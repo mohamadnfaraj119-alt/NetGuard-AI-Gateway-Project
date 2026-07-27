@@ -41,11 +41,22 @@ CLASSIFICATIONS = (
     "UNKNOWN_SUSPICIOUS",
     "LOW_SIGNAL_REVIEW",
 )
+VALIDATED_ALERT_TIER_POLICY = "validated_portscan_alert_tier"
+VALIDATED_ACTIONABLE_CLASSES = ("PORT_SCAN",)
+WITHHELD_REVIEW_ONLY_CLASSES = tuple(
+    classification
+    for classification in CLASSIFICATIONS
+    if classification not in VALIDATED_ACTIONABLE_CLASSES
+)
 
 if str(BASE_DIR / "scripts") not in sys.path:
     sys.path.insert(0, str(BASE_DIR / "scripts"))
 
 import attack_classifier  # noqa: E402
+
+
+class CalibrationInputError(RuntimeError):
+    """Raised when scoped calibration input leaves no safe rows to replay."""
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,9 +65,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--normal-date",
-        required=True,
         type=parse_date,
         help="Known-normal date to use for false-positive replay, formatted YYYY-MM-DD.",
+    )
+    parser.add_argument(
+        "--normal-manifest",
+        type=Path,
+        help="Optional ground-truth manifest. Only label=normal bounded sessions are replayed.",
     )
     parser.add_argument(
         "--attack-date",
@@ -79,7 +94,10 @@ def parse_args() -> argparse.Namespace:
         default=10,
         help="Number of top rows/reasons/examples to include. Default: 10.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.normal_date and not args.normal_manifest:
+        parser.error("at least one of --normal-date or --normal-manifest is required")
+    return args
 
 
 def parse_date(value: str) -> str:
@@ -106,6 +124,204 @@ def read_csv_rows(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     with path.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
         return [dict(row) for row in reader], list(reader.fieldnames or [])
+
+
+def load_manifest_data(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [], [f"Could not read manifest {path}: {exc}"]
+    sessions = data.get("sessions")
+    if not isinstance(sessions, list):
+        return [], [f"Manifest {path} has no sessions list."]
+    valid_sessions = []
+    gaps = []
+    for index, session in enumerate(sessions):
+        if isinstance(session, dict):
+            valid_sessions.append(session)
+        else:
+            gaps.append(f"Session {index} is not an object and was skipped.")
+    return valid_sessions, gaps
+
+
+def session_label(session: dict[str, Any]) -> str:
+    return str(session.get("label") or "")
+
+
+def session_name(session: dict[str, Any], index: int | None = None) -> str:
+    for key in ("scenario", "session_id", "id"):
+        value = session.get(key)
+        if value:
+            return str(value)
+    return f"session_{index}" if index is not None else "session"
+
+
+def risk_boundary(session: dict[str, Any]) -> dict[str, Any]:
+    boundaries = session.get("row_boundaries")
+    if not isinstance(boundaries, dict):
+        return {}
+    risk = boundaries.get("risk")
+    return risk if isinstance(risk, dict) else {}
+
+
+def int_or_none(value: Any) -> int | None:
+    try:
+        if value is None or value == "":
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def has_risk_bounds(session: dict[str, Any]) -> bool:
+    boundary = risk_boundary(session)
+    return int_or_none(boundary.get("start_row")) is not None and int_or_none(boundary.get("stop_row")) is not None
+
+
+def has_risk_boundary_position(session: dict[str, Any]) -> bool:
+    boundary = risk_boundary(session)
+    return "start_row" in boundary or "stop_row" in boundary
+
+
+def risk_rows_added(session: dict[str, Any]) -> int | None:
+    boundary = risk_boundary(session)
+    rows_added = int_or_none(boundary.get("rows_added"))
+    if rows_added is not None:
+        return rows_added
+    start = int_or_none(boundary.get("start_row"))
+    stop = int_or_none(boundary.get("stop_row"))
+    if start is None or stop is None:
+        return None
+    return stop - start
+
+
+def excluded_detail(
+    kind: str,
+    session: dict[str, Any],
+    index: int,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "session_type": kind,
+        "session_index": index,
+        "session_id": str(session.get("session_id") or session.get("id") or ""),
+        "scenario": session_name(session, index),
+        "date": str(session.get("date") or ""),
+        "label": session_label(session),
+        "reason": reason,
+    }
+
+
+def validate_risk_bounds(
+    session: dict[str, Any],
+    total_rows: int,
+    require_rows_added: bool = True,
+) -> tuple[int | None, int | None, str | None]:
+    boundary = risk_boundary(session)
+    start = int_or_none(boundary.get("start_row"))
+    stop = int_or_none(boundary.get("stop_row"))
+    if start is None or stop is None:
+        return None, None, "missing risk row boundaries"
+    if start < 0 or stop < start:
+        return None, None, "invalid risk row boundary ordering"
+    if stop > total_rows:
+        return None, None, f"risk row boundary stop_row={stop} exceeds CSV rows={total_rows}"
+    rows_added = risk_rows_added(session)
+    if rows_added is None and require_rows_added:
+        return None, None, "risk.rows_added <= 0"
+    if rows_added is not None and rows_added <= 0:
+        return None, None, "risk.rows_added <= 0"
+    if stop - start <= 0:
+        return None, None, "risk row boundary selects no rows"
+    return start, stop, None
+
+
+def load_normal_manifest_rows(
+    manifest_path: Path,
+    base_dir: Path,
+) -> tuple[list[dict[str, str]], list[str], dict[str, Any], list[str]]:
+    sessions, gaps = load_manifest_data(manifest_path)
+    normal_sessions = [
+        (index, session)
+        for index, session in enumerate(sessions)
+        if session_label(session) == "normal"
+    ]
+    stats: dict[str, Any] = {
+        "normal_sessions_total": len(normal_sessions),
+        "normal_sessions_used": 0,
+        "normal_sessions_excluded": 0,
+        "normal_source_rows": 0,
+        "normal_session_names_used": [],
+        "excluded_session_details": [],
+    }
+    risk_cache: dict[str, tuple[list[dict[str, str]], list[str]]] = {}
+    scoped_rows: list[dict[str, str]] = []
+    seen: set[tuple[str, int, str]] = set()
+    used_dates: list[str] = []
+
+    for index, session in normal_sessions:
+        date = str(session.get("date") or "")
+        source_ips = [str(item) for item in (session.get("source_ips") or []) if str(item)]
+        rows_added = risk_rows_added(session)
+        reason = ""
+        if rows_added is None or rows_added <= 0:
+            reason = "risk.rows_added <= 0"
+        elif not source_ips:
+            reason = "normal session has no source_ips"
+        elif not date:
+            reason = "normal session has no date"
+        if reason:
+            stats["excluded_session_details"].append(excluded_detail("normal", session, index, reason))
+            continue
+
+        if date not in risk_cache:
+            risk_path = base_dir / "data" / "reports" / f"risk_{date}.csv"
+            if not risk_path.exists():
+                stats["excluded_session_details"].append(
+                    excluded_detail("normal", session, index, f"risk CSV missing: {risk_path}")
+                )
+                continue
+            risk_cache[date] = read_csv_rows(risk_path)
+        risk_rows, risk_headers = risk_cache[date]
+        start, stop, boundary_error = validate_risk_bounds(session, len(risk_rows))
+        if boundary_error:
+            stats["excluded_session_details"].append(excluded_detail("normal", session, index, boundary_error))
+            continue
+
+        matched = 0
+        for original_index, row in enumerate(risk_rows[start:stop], start=start):
+            src_ip = row_value(row, "src_ip")
+            if src_ip not in set(source_ips):
+                continue
+            dedupe_key = (date, original_index, src_ip)
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            item = dict(row)
+            item["original_row_index"] = str(original_index)
+            item["manifest_date"] = date
+            item["manifest_session_id"] = str(session.get("session_id") or session.get("id") or "")
+            item["manifest_scenario"] = session_name(session, index)
+            scoped_rows.append(item)
+            matched += 1
+        if matched:
+            stats["normal_sessions_used"] += 1
+            stats["normal_session_names_used"].append(session_name(session, index))
+            if date not in used_dates:
+                used_dates.append(date)
+        else:
+            stats["excluded_session_details"].append(
+                excluded_detail("normal", session, index, "no rows matched source_ips within risk row boundary")
+            )
+
+    stats["normal_sessions_excluded"] = len(stats["excluded_session_details"])
+    stats["normal_source_rows"] = len(scoped_rows)
+    if not scoped_rows:
+        raise CalibrationInputError(
+            f"No valid normal rows remain after applying --normal-manifest {manifest_path}"
+        )
+    all_headers = sorted(set().union(*(set(headers) for _date, (_rows, headers) in risk_cache.items()))) if risk_cache else []
+    return scoped_rows, all_headers, stats, gaps, used_dates
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
@@ -162,6 +378,16 @@ def parse_time(row: dict[str, Any]) -> datetime | None:
         except (OSError, OverflowError, ValueError):
             return None
     return None
+
+
+def parse_manifest_wall_time(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=None)
 
 
 def time_text(row: dict[str, Any]) -> str:
@@ -371,7 +597,8 @@ def current_policy_rows(risk_rows: list[dict[str, str]]) -> list[dict[str, Any]]
         classified = classify_current_policy(row, repeated)
         item = dict(row)
         item.update(classified)
-        item["row_index"] = index
+        original_index = int_or_none(row.get("original_row_index")) if "original_row_index" in row else None
+        item["row_index"] = original_index if original_index is not None else index
         item["estimated_failed_connections_30s"] = estimated_failed_count(item)
         item["reason_text"] = "; ".join(str(reason) for reason in item["reasons"])
         results.append(item)
@@ -388,6 +615,7 @@ def production_policy_rows(risk_rows: list[dict[str, str]]) -> list[dict[str, An
             continue
         classified = attack_classifier.classify_row(row, repeated, set())
         item = dict(row)
+        original_index = int_or_none(row.get("original_row_index")) if "original_row_index" in row else None
         item.update(
             {
                 "classification": classified["attack_type"],
@@ -395,7 +623,7 @@ def production_policy_rows(risk_rows: list[dict[str, str]]) -> list[dict[str, An
                 "reasons": list(classified["reasons"]),
                 "src_ip": classified["src_ip"],
                 "time": classified["time"],
-                "row_index": index,
+                "row_index": original_index if original_index is not None else index,
             }
         )
         item["estimated_failed_connections_30s"] = estimated_failed_count(item)
@@ -590,6 +818,20 @@ def candidate_policies() -> list[CandidatePolicy]:
             dns_min_anomaly=0.35,
             dns_min_persistence=2,
         ),
+        CandidatePolicy(
+            VALIDATED_ALERT_TIER_POLICY,
+            "Keep combined-conservative review evidence, but route only validated high-port PORT_SCAN rows as actionable alerts.",
+            failed_min_connections=10,
+            failed_min_absolute=5,
+            failed_min_risk=20,
+            failed_require_additional_signal=True,
+            port_min_connections=50,
+            port_require_failed_or_risk=True,
+            port_require_unique_ports_when_low_connections=True,
+            dns_min_risk=30,
+            dns_min_anomaly=0.35,
+            dns_min_persistence=2,
+        ),
     ]
 
 
@@ -701,10 +943,43 @@ def cooldown_alert_count(rows: list[dict[str, Any]], cooldown_seconds: int = DEF
     return alerts
 
 
+def numeric_field_present_at_least(row: dict[str, Any], name: str, threshold: float) -> bool:
+    value = row.get(name)
+    if value is None or str(value).strip() == "":
+        return False
+    try:
+        return float(value) >= threshold
+    except (TypeError, ValueError):
+        return False
+
+
+def is_actionable_portscan_alert(row: dict[str, Any]) -> bool:
+    if str(row.get("classification") or "") != "PORT_SCAN":
+        return False
+    if not bool_flag(row, "flag_port_scan"):
+        return False
+    return (
+        numeric_field_present_at_least(row, "unique_dst_ports_30s", 20)
+        or numeric_field_present_at_least(row, "unique_dst_ports_1m", 20)
+    )
+
+
+def actionable_alert_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in rows if is_actionable_portscan_alert(row)]
+
+
 def percent(part: int | float, whole: int | float) -> float:
     if not whole:
         return 0.0
     return round(float(part) / float(whole) * 100.0, 4)
+
+
+def production_ready_reason(normal_target_met: bool, attack_validation_available: bool) -> str:
+    if not normal_target_met:
+        return "Not production-ready: row-level normal target failed."
+    if not attack_validation_available:
+        return "Not production-ready: no valid labeled attack-retention evidence."
+    return "Not production-ready: attack ground truth does not cover all suspicious classes."
 
 
 def candidate_metrics(
@@ -712,6 +987,7 @@ def candidate_metrics(
     current_count: int,
     policy: CandidatePolicy,
     retained: list[dict[str, Any]],
+    attack_validation_available: bool = False,
 ) -> dict[str, Any]:
     counts = Counter(str(row.get("classification")) for row in retained)
     false_positive_rows = len(retained)
@@ -719,6 +995,8 @@ def candidate_metrics(
     repeated_sequences = [seq for seq in group_sequences(retained) if len(seq) >= 2]
     alerts_after_cooldown = cooldown_alert_count(retained, policy.cooldown_seconds)
     normal_target_met = fp_rate <= 1.0 and alerts_after_cooldown <= 5
+    actionable_rows = actionable_alert_rows(retained)
+    actionable_alerts_after_cooldown = cooldown_alert_count(actionable_rows, policy.cooldown_seconds)
     return {
         "candidate_policy": policy.name,
         "description": policy.description,
@@ -731,8 +1009,19 @@ def candidate_metrics(
         "classification_counts": json.dumps(dict(counts), sort_keys=True),
         "percentage_reduction_vs_current": percent(current_count - false_positive_rows, current_count),
         "normal_target_met": normal_target_met,
+        "review_rows": false_positive_rows,
+        "review_rate": fp_rate,
+        "actionable_false_positive_rows": len(actionable_rows),
+        "actionable_false_positive_rate": percent(len(actionable_rows), normal_risk_count),
+        "actionable_alerts_after_cooldown": actionable_alerts_after_cooldown,
+        "actionable_attack_true_positives": "unavailable",
+        "actionable_attack_recall": "unavailable",
+        "validated_actionable_classes": json.dumps(list(VALIDATED_ACTIONABLE_CLASSES)),
+        "withheld_review_only_classes": json.dumps(list(WITHHELD_REVIEW_ONLY_CLASSES)),
+        "staged_alerting_ready": False,
+        "staged_alerting_ready_reason": "Attack validation unavailable for actionable alert tier.",
         "production_ready": False,
-        "production_ready_reason": "Not production-ready without labeled attack-retention evidence.",
+        "production_ready_reason": production_ready_reason(normal_target_met, attack_validation_available),
     }
 
 
@@ -822,8 +1111,19 @@ def infer_failed_connection_cause(
     return causes
 
 
-def load_manifest(path: Path | None, attack_date: str | None = None) -> tuple[list[dict[str, Any]], list[str]]:
+def load_manifest(
+    path: Path | None,
+    attack_date: str | None = None,
+    base_dir: Path = BASE_DIR,
+) -> tuple[list[dict[str, Any]], list[str], dict[str, Any]]:
     gaps = []
+    stats: dict[str, Any] = {
+        "attack_sessions_total": 0,
+        "attack_sessions_used": 0,
+        "attack_sessions_excluded": 0,
+        "attack_session_names_used": [],
+        "excluded_session_details": [],
+    }
     if path is None:
         if attack_date:
             gaps.append(
@@ -831,29 +1131,60 @@ def load_manifest(path: Path | None, attack_date: str | None = None) -> tuple[li
             )
         else:
             gaps.append("No attack ground-truth manifest supplied; attack recall is unavailable.")
-        return [], gaps
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return [], [f"Could not read attack manifest: {exc}"]
-    sessions = data.get("sessions")
-    if not isinstance(sessions, list):
-        return [], ["Attack manifest has no sessions list; attack recall is unavailable."]
+        return [], gaps, stats
+    sessions, read_gaps = load_manifest_data(path)
+    gaps.extend(read_gaps)
+    if read_gaps and not sessions:
+        gaps.append("No valid attack sessions supplied; attack recall is unavailable.")
+        return [], gaps, stats
+    attack_sessions = [
+        (index, session)
+        for index, session in enumerate(sessions)
+        if session_label(session) == "attack"
+    ]
+    stats["attack_sessions_total"] = len(attack_sessions)
     valid = []
-    for index, session in enumerate(sessions):
-        if not isinstance(session, dict):
-            gaps.append(f"Session {index} is not an object and was skipped.")
-            continue
-        if session.get("label") != "attack":
-            gaps.append(f"Session {index} label is not attack and was skipped.")
-            continue
-        if not session.get("date") or not session.get("expected_classes"):
-            gaps.append(f"Session {index} lacks date or expected_classes and was skipped.")
+    risk_cache: dict[str, tuple[list[dict[str, str]], list[str]]] = {}
+    for index, session in attack_sessions:
+        date = str(session.get("date") or "")
+        expected = session.get("expected_classes") or []
+        reason = ""
+        rows_added = risk_rows_added(session)
+        if rows_added is not None and rows_added <= 0:
+            reason = "risk.rows_added <= 0"
+        elif not expected:
+            reason = "attack session has no expected_classes"
+        elif not date:
+            reason = "attack session has no date"
+        else:
+            risk_path = base_dir / "data" / "reports" / f"risk_{date}.csv"
+            if not risk_path.exists():
+                reason = f"risk CSV missing: {risk_path}"
+            elif has_risk_boundary_position(session):
+                if date not in risk_cache:
+                    risk_cache[date] = read_csv_rows(risk_path)
+                risk_rows, _headers = risk_cache[date]
+                _start, _stop, boundary_error = validate_risk_bounds(
+                    session,
+                    len(risk_rows),
+                    require_rows_added=False,
+                )
+                if boundary_error:
+                    reason = boundary_error
+        if reason:
+            detail = excluded_detail("attack", session, index, reason)
+            stats["excluded_session_details"].append(detail)
+            gaps.append(
+                f"Attack session {detail['scenario']} ({detail['date']}) excluded: {detail['reason']}"
+            )
             continue
         valid.append(session)
+        stats["attack_session_names_used"].append(session_name(session, index))
+    stats["attack_sessions_used"] = len(valid)
+    stats["attack_sessions_excluded"] = len(stats["excluded_session_details"])
     if not valid:
         gaps.append("No valid attack sessions supplied; attack recall is unavailable.")
-    return valid, gaps
+    return valid, gaps, stats
 
 
 def row_in_session(row: dict[str, Any], session: dict[str, Any]) -> bool:
@@ -861,21 +1192,61 @@ def row_in_session(row: dict[str, Any], session: dict[str, Any]) -> bool:
     if source_ips and str(row.get("src_ip") or "") not in set(map(str, source_ips)):
         return False
     current = parse_time(row)
-    start_text = session.get("time_start")
-    end_text = session.get("time_end")
-    if current and start_text:
-        try:
-            if current < datetime.fromisoformat(str(start_text)):
-                return False
-        except ValueError:
-            pass
-    if current and end_text:
-        try:
-            if current > datetime.fromisoformat(str(end_text)):
-                return False
-        except ValueError:
-            pass
+    start = parse_manifest_wall_time(session.get("time_start"))
+    end = parse_manifest_wall_time(session.get("time_end"))
+    if current and start and current.replace(tzinfo=None) < start:
+        return False
+    if current and end and current.replace(tzinfo=None) > end:
+        return False
     return True
+
+
+def attack_session_current_rows(
+    session: dict[str, Any],
+    base_dir: Path,
+    raw_cache: dict[str, list[dict[str, str]]],
+) -> list[dict[str, Any]]:
+    date = str(session["date"])
+    if date not in raw_cache:
+        raw_cache[date], _headers = read_csv_rows(base_dir / "data" / "reports" / f"risk_{date}.csv")
+    risk_rows = raw_cache[date]
+    source_ips = {str(item) for item in (session.get("source_ips") or []) if str(item)}
+    if has_risk_bounds(session):
+        start, stop, boundary_error = validate_risk_bounds(
+            session,
+            len(risk_rows),
+            require_rows_added=False,
+        )
+        if boundary_error:
+            return []
+        scoped = []
+        for original_index, row in enumerate(risk_rows[start:stop], start=start):
+            src_ip = row_value(row, "src_ip")
+            if source_ips and src_ip not in source_ips:
+                continue
+            item = dict(row)
+            item["original_row_index"] = str(original_index)
+            item["manifest_date"] = date
+            item["manifest_session_id"] = str(session.get("session_id") or session.get("id") or "")
+            item["manifest_scenario"] = session_name(session)
+            scoped.append(item)
+        return current_policy_rows(scoped)
+    full_current = current_policy_rows(risk_rows)
+    return [row for row in full_current if row_in_session(row, session)]
+
+
+def detection_timing_fields(first: datetime | None, start_value: Any) -> tuple[int | str, int | str, str]:
+    if first is None:
+        return "unavailable", "unavailable", "unavailable"
+    start = parse_manifest_wall_time(start_value)
+    if start is None:
+        return "unavailable", "unavailable", "unavailable"
+    raw = int((first.replace(tzinfo=None) - start).total_seconds())
+    if raw < -30:
+        return raw, "unavailable", "invalid_negative_delay"
+    if raw < 0:
+        return raw, 0, "overlapping_30s_window"
+    return raw, raw, ""
 
 
 def attack_validation_rows(
@@ -889,50 +1260,67 @@ def attack_validation_rows(
             {
                 "candidate_policy": policy.name,
                 "session_date": "",
+                "session_scenario": "",
                 "expected_classes": "",
                 "true_positives": "",
                 "missed_expected_attacks": "",
                 "detection_rate_recall": "unavailable",
+                "detection_delay_seconds_raw": "unavailable",
                 "detection_delay_seconds": "unavailable",
+                "detection_timing_note": "unavailable",
                 "detected_classifications": "",
+                "detected_actionable_classifications": "",
+                "actionable_attack_true_positives": "",
+                "missed_actionable_expected_attacks": "",
+                "actionable_attack_recall": "unavailable",
                 "notes": "No valid attack ground-truth manifest supplied.",
             }
             for policy in policies
         ]
-    by_date: dict[str, list[dict[str, Any]]] = {}
+    session_rows: dict[int, list[dict[str, Any]]] = {}
+    raw_cache: dict[str, list[dict[str, str]]] = {}
     for session in sessions:
-        date = str(session["date"])
-        if date not in by_date:
-            risk_rows, _headers = read_csv_rows(base_dir / "data" / "reports" / f"risk_{date}.csv")
-            by_date[date] = current_policy_rows(risk_rows)
+        session_rows[id(session)] = attack_session_current_rows(session, base_dir, raw_cache)
     for policy in policies:
         for session in sessions:
             date = str(session["date"])
             expected = [str(item) for item in session.get("expected_classes", [])]
-            session_current = [row for row in by_date.get(date, []) if row_in_session(row, session)]
+            session_current = session_rows.get(id(session), [])
             retained, _removed = apply_candidate(session_current, policy)
             detected_classes = sorted({str(row.get("classification")) for row in retained})
             detected_expected = sorted(set(expected).intersection(detected_classes))
             missed = sorted(set(expected).difference(detected_classes))
             delay = "unavailable"
+            delay_raw: int | str = "unavailable"
+            timing_note = "unavailable"
             if retained and session.get("time_start"):
-                try:
-                    start = datetime.fromisoformat(str(session["time_start"]))
-                    first = min((parse_time(row) for row in retained if parse_time(row)), default=None)
-                    if first:
-                        delay = int((first - start).total_seconds())
-                except ValueError:
-                    pass
+                first = min((parse_time(row) for row in retained if parse_time(row)), default=None)
+                delay_raw, delay, timing_note = detection_timing_fields(first, session.get("time_start"))
+            actionable_rows = actionable_alert_rows(retained)
+            actionable_classes = sorted({str(row.get("classification")) for row in actionable_rows})
+            expected_actionable = sorted(set(expected).intersection(VALIDATED_ACTIONABLE_CLASSES))
+            actionable_detected_expected = sorted(set(expected_actionable).intersection(actionable_classes))
+            actionable_missed = sorted(set(expected_actionable).difference(actionable_classes))
+            actionable_recall: float | str = "unavailable"
+            if expected_actionable:
+                actionable_recall = percent(len(actionable_detected_expected), len(expected_actionable))
             rows.append(
                 {
                     "candidate_policy": policy.name,
                     "session_date": date,
+                    "session_scenario": session_name(session),
                     "expected_classes": ",".join(expected),
                     "true_positives": len(detected_expected),
                     "missed_expected_attacks": ",".join(missed),
                     "detection_rate_recall": percent(len(detected_expected), len(expected)),
+                    "detection_delay_seconds_raw": delay_raw,
                     "detection_delay_seconds": delay,
+                    "detection_timing_note": timing_note,
                     "detected_classifications": ",".join(detected_classes),
+                    "detected_actionable_classifications": ",".join(actionable_classes),
+                    "actionable_attack_true_positives": len(actionable_detected_expected),
+                    "missed_actionable_expected_attacks": ",".join(actionable_missed),
+                    "actionable_attack_recall": actionable_recall,
                     "notes": str(session.get("notes") or ""),
                 }
             )
@@ -982,6 +1370,72 @@ def best_normal_candidate(candidate_rows: list[dict[str, Any]]) -> str:
     return str(ordered[0]["candidate_policy"])
 
 
+def expected_actionable_session_count(attack_rows: list[dict[str, Any]], policy_name: str) -> int:
+    count = 0
+    for row in attack_rows:
+        if row.get("candidate_policy") != policy_name:
+            continue
+        expected = {item for item in str(row.get("expected_classes") or "").split(",") if item}
+        if expected.intersection(VALIDATED_ACTIONABLE_CLASSES):
+            count += 1
+    return count
+
+
+def augment_actionable_attack_metrics(
+    candidate_rows: list[dict[str, Any]],
+    attack_rows: list[dict[str, Any]],
+) -> None:
+    by_policy: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in attack_rows:
+        by_policy[str(row.get("candidate_policy") or "")].append(row)
+
+    for candidate in candidate_rows:
+        policy_name = str(candidate["candidate_policy"])
+        rows = by_policy.get(policy_name, [])
+        expected_sessions = expected_actionable_session_count(rows, policy_name)
+        true_positives = sum(
+            int(row.get("actionable_attack_true_positives") or 0)
+            for row in rows
+            if str(row.get("actionable_attack_true_positives") or "").isdigit()
+        )
+        if expected_sessions:
+            candidate["actionable_attack_true_positives"] = true_positives
+            candidate["actionable_attack_recall"] = percent(true_positives, expected_sessions)
+        else:
+            candidate["actionable_attack_true_positives"] = "unavailable"
+            candidate["actionable_attack_recall"] = "unavailable"
+
+        if policy_name != VALIDATED_ALERT_TIER_POLICY:
+            candidate["staged_alerting_ready"] = False
+            candidate["staged_alerting_ready_reason"] = (
+                "Only validated_portscan_alert_tier is evaluated for staged alert routing."
+            )
+            continue
+
+        fp_ok = float(candidate["actionable_false_positive_rate"]) <= 1.0
+        cooldown_ok = int(candidate["actionable_alerts_after_cooldown"]) <= 5
+        recall_available = expected_sessions > 0
+        recall_ok = candidate["actionable_attack_recall"] == 100.0
+        every_session_retained = recall_available and true_positives == expected_sessions
+        if fp_ok and cooldown_ok and every_session_retained and recall_ok:
+            candidate["staged_alerting_ready"] = True
+            candidate["staged_alerting_ready_reason"] = (
+                "Narrow validated PORT_SCAN alert tier meets offline staged-runtime-test targets."
+            )
+        else:
+            reasons = []
+            if not fp_ok:
+                reasons.append("actionable false-positive rate exceeds 1%")
+            if not cooldown_ok:
+                reasons.append("actionable alerts after cooldown exceed 5")
+            if not recall_available:
+                reasons.append("no validated PORT_SCAN attack sessions available")
+            elif not every_session_retained or not recall_ok:
+                reasons.append("validated PORT_SCAN attack recall is below 100%")
+            candidate["staged_alerting_ready"] = False
+            candidate["staged_alerting_ready_reason"] = "; ".join(reasons)
+
+
 def summarize_calibration(
     normal_date: str,
     normal_risk_rows: list[dict[str, str]],
@@ -991,6 +1445,8 @@ def summarize_calibration(
     policies: list[CandidatePolicy],
     sessions: list[dict[str, Any]],
     manifest_gaps: list[str],
+    normal_session_stats: dict[str, Any],
+    attack_session_stats: dict[str, Any],
     top: int,
     base_dir: Path,
 ) -> dict[str, Any]:
@@ -1004,7 +1460,7 @@ def summarize_calibration(
     )
     expected_snapshot_matches = True
     expected_mismatch = {}
-    if normal_date == "2026-07-26":
+    if normal_date == "2026-07-26" and int(normal_session_stats.get("normal_sessions_total", 0)) == 0:
         expected_total = sum(EXPECTED_2026_07_26_COUNTS.values())
         expected_snapshot_matches = len(current_rows) == expected_total and all(
             current_counts.get(key, 0) == value
@@ -1025,7 +1481,13 @@ def summarize_calibration(
     for policy in policies:
         retained, removed = apply_candidate(current_rows, policy)
         policy_results[policy.name] = (retained, removed)
-        metrics = candidate_metrics(len(normal_risk_rows), len(current_rows), policy, retained)
+        metrics = candidate_metrics(
+            len(normal_risk_rows),
+            len(current_rows),
+            policy,
+            retained,
+            attack_validation_available=bool(sessions),
+        )
         candidate_comparison.append(metrics)
         for row in retained + removed:
             retained_removed_rows.append(
@@ -1065,6 +1527,7 @@ def summarize_calibration(
 
     failed_analysis = failed_connection_analysis(current_rows, policy_results, top)
     attack_rows = attack_validation_rows(sessions, policies, base_dir)
+    augment_actionable_attack_metrics(candidate_comparison, attack_rows)
     unavailable_features = [
         field for field in (
             "failed_conn_count_30s",
@@ -1079,8 +1542,26 @@ def summarize_calibration(
 
     summary = {
         "normal_date": normal_date,
+        "normal_dates": sorted({
+            str(row.get("manifest_date") or normal_date)
+            for row in normal_risk_rows
+            if str(row.get("manifest_date") or normal_date)
+        }),
         "normal_risk_rows": len(normal_risk_rows),
         "normal_window_headers": normal_windows_headers,
+        "normal_sessions_total": int(normal_session_stats.get("normal_sessions_total", 0)),
+        "normal_sessions_used": int(normal_session_stats.get("normal_sessions_used", 0)),
+        "normal_sessions_excluded": int(normal_session_stats.get("normal_sessions_excluded", 0)),
+        "normal_source_rows": int(normal_session_stats.get("normal_source_rows", len(normal_risk_rows))),
+        "normal_session_names_used": list(normal_session_stats.get("normal_session_names_used", [])),
+        "attack_sessions_total": int(attack_session_stats.get("attack_sessions_total", 0)),
+        "attack_sessions_used": int(attack_session_stats.get("attack_sessions_used", 0)),
+        "attack_sessions_excluded": int(attack_session_stats.get("attack_sessions_excluded", 0)),
+        "attack_session_names_used": list(attack_session_stats.get("attack_session_names_used", [])),
+        "excluded_session_details": (
+            list(normal_session_stats.get("excluded_session_details", []))
+            + list(attack_session_stats.get("excluded_session_details", []))
+        ),
         "current_suspicious_rows": len(current_rows),
         "production_suspicious_rows": len(production_rows),
         "offline_reproduction_matches_production": reproduction_matches,
@@ -1136,6 +1617,9 @@ def markdown_report(summary: dict[str, Any]) -> str:
         "## Observed Facts",
         "",
         f"- Normal risk rows: {summary['normal_risk_rows']}",
+        f"- Normal sessions total/used/excluded: {summary['normal_sessions_total']}/{summary['normal_sessions_used']}/{summary['normal_sessions_excluded']}",
+        f"- Normal source-scoped rows: {summary['normal_source_rows']}",
+        f"- Attack sessions total/used/excluded: {summary['attack_sessions_total']}/{summary['attack_sessions_used']}/{summary['attack_sessions_excluded']}",
         f"- Current suspicious rows: {summary['current_suspicious_rows']}",
         f"- Offline reproduction matched current production classifier: {summary['offline_reproduction_matches_production']}",
         f"- Historical 2026-07-26 expected 167-row snapshot matched: {summary['expected_2026_07_26_snapshot_matches']}",
@@ -1144,14 +1628,35 @@ def markdown_report(summary: dict[str, Any]) -> str:
         "",
         "## Candidate Simulations",
         "",
-        "| Candidate | FP rows | FP rate | Alerts after cooldown | Reduction vs current | Normal target met |",
-        "| --- | ---: | ---: | ---: | ---: | --- |",
+        "### A. Row-level classification quality",
+        "",
+        "| Candidate | Review rows | Row FP rate | Row alerts after cooldown | Reduction vs current | Normal target met | Production ready reason |",
+        "| --- | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     for row in summary["candidate_comparison"]:
         lines.append(
-            f"| `{row['candidate_policy']}` | {row['false_positive_rows']} | "
+            f"| `{row['candidate_policy']}` | {row['review_rows']} | "
             f"{row['false_positive_rate']:.2f}% | {row['alerts_after_cooldown']} | "
-            f"{row['percentage_reduction_vs_current']:.2f}% | {row['normal_target_met']} |"
+            f"{row['percentage_reduction_vs_current']:.2f}% | {row['normal_target_met']} | "
+            f"{row['production_ready_reason']} |"
+        )
+    lines.extend(
+        [
+            "",
+            "### B. Actionable-alert quality",
+            "",
+            "| Candidate | Actionable FP rows | Actionable FP rate | Actionable alerts after cooldown | Actionable attack TP | Actionable attack recall | Staged alerting ready | Reason |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        ]
+    )
+    for row in summary["candidate_comparison"]:
+        recall = row["actionable_attack_recall"]
+        recall_text = f"{recall:.2f}%" if isinstance(recall, (float, int)) else str(recall)
+        lines.append(
+            f"| `{row['candidate_policy']}` | {row['actionable_false_positive_rows']} | "
+            f"{row['actionable_false_positive_rate']:.2f}% | {row['actionable_alerts_after_cooldown']} | "
+            f"{row['actionable_attack_true_positives']} | {recall_text} | "
+            f"{row['staged_alerting_ready']} | {row['staged_alerting_ready_reason']} |"
         )
     lines.extend(
         [
@@ -1169,9 +1674,34 @@ def markdown_report(summary: dict[str, Any]) -> str:
             f"- measurable causes: `{json.dumps(failed['measurable_cause'])}`",
             f"- removed by candidate: `{json.dumps(failed['removed_by_candidate'], sort_keys=True)}`",
             "",
+            "## Excluded Sessions",
+            "",
+        ]
+    )
+    if summary["excluded_session_details"]:
+        for detail in summary["excluded_session_details"]:
+            lines.append(
+                f"- {detail['session_type']} `{detail['scenario']}` on {detail['date']}: {detail['reason']}"
+            )
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
             "## Trade-Offs",
             "",
-            "- Candidates with strict absolute failed-count and risk requirements reduce normal false positives, but attack recall remains unavailable unless a scoped attack manifest is supplied.",
+        ]
+    )
+    if summary["attack_validation_available"]:
+        lines.append(
+            "- Valid attack sessions were supplied; actionable metrics use only non-excluded bounded attack evidence."
+        )
+    else:
+        lines.append(
+            "- Candidates with strict absolute failed-count and risk requirements reduce normal false positives, but attack recall remains unavailable unless a scoped attack manifest is supplied."
+        )
+    lines.extend(
+        [
             "- Cooldown/collapse metrics reduce actionable alert volume without proving that row-level classifications should change.",
             "- Normal-only evidence can identify false-positive mechanisms; it cannot prove a production-safe threshold.",
             "",
@@ -1189,8 +1719,24 @@ def markdown_report(summary: dict[str, Any]) -> str:
             "",
             "## Recommended Next Experiment",
             "",
-            "- Build a scoped attack ground-truth manifest from verified controlled test sessions before choosing a production candidate.",
-            "- Replay this calibrator with `--attack-manifest` and compare normal false-positive reduction against attack-retention results.",
+        ]
+    )
+    if summary["attack_sessions_used"]:
+        lines.append(
+            "- Add class-specific controlled evidence for withheld review-only classes before considering broad production alert routing."
+        )
+        lines.append(
+            "- If `validated_portscan_alert_tier` is staged-alerting ready, test only that narrow runtime alert route in a later controlled phase."
+        )
+    else:
+        lines.append(
+            "- Build a scoped attack ground-truth manifest from verified controlled test sessions before choosing a production candidate."
+        )
+        lines.append(
+            "- Replay this calibrator with `--attack-manifest` and compare normal false-positive reduction against attack-retention results."
+        )
+    lines.extend(
+        [
             "- Do not modify production rules from this normal-only replay alone.",
             "",
             "This report is an offline simulation only. It does not modify or claim to modify production rules.",
@@ -1207,8 +1753,17 @@ def ground_truth_gaps_markdown(summary: dict[str, Any]) -> str:
         "## Observed Facts",
         "",
     ]
+    if summary["attack_sessions_used"]:
+        used = ", ".join(summary.get("attack_session_names_used") or [])
+        lines.append(f"- Valid bounded attack sessions used: {used}")
     for gap in summary["ground_truth_gaps"]:
         lines.append(f"- {gap}")
+    if summary["excluded_session_details"]:
+        lines.extend(["", "## Excluded Sessions", ""])
+        for detail in summary["excluded_session_details"]:
+            lines.append(
+                f"- {detail['session_type']} `{detail['scenario']}` on {detail['date']}: {detail['reason']}"
+            )
     lines.extend(
         [
             "",
@@ -1218,8 +1773,15 @@ def ground_truth_gaps_markdown(summary: dict[str, Any]) -> str:
             "",
             "## Recommended Investigation",
             "",
-            "- Create a manifest with verified source IPs, time bounds, and expected classes for controlled attack sessions.",
-            "- Re-run the calibrator with `--attack-manifest` before considering production rule changes.",
+        ]
+    )
+    if summary["attack_sessions_used"]:
+        lines.append("- Add verified attack sessions for classes that remain review-only before expanding actionable alert routing.")
+    else:
+        lines.append("- Create a manifest with verified source IPs, time bounds, and expected classes for controlled attack sessions.")
+        lines.append("- Re-run the calibrator with `--attack-manifest` before considering production rule changes.")
+    lines.extend(
+        [
             "",
         ]
     )
@@ -1271,6 +1833,17 @@ def write_outputs(output_dir: Path, data: dict[str, Any], current_rows: list[dic
             "classification_counts",
             "percentage_reduction_vs_current",
             "normal_target_met",
+            "review_rows",
+            "review_rate",
+            "actionable_false_positive_rows",
+            "actionable_false_positive_rate",
+            "actionable_alerts_after_cooldown",
+            "actionable_attack_true_positives",
+            "actionable_attack_recall",
+            "validated_actionable_classes",
+            "withheld_review_only_classes",
+            "staged_alerting_ready",
+            "staged_alerting_ready_reason",
             "production_ready",
             "production_ready_reason",
         ],
@@ -1356,12 +1929,19 @@ def write_outputs(output_dir: Path, data: dict[str, Any], current_rows: list[dic
         [
             "candidate_policy",
             "session_date",
+            "session_scenario",
             "expected_classes",
             "true_positives",
             "missed_expected_attacks",
             "detection_rate_recall",
+            "detection_delay_seconds_raw",
             "detection_delay_seconds",
+            "detection_timing_note",
             "detected_classifications",
+            "detected_actionable_classifications",
+            "actionable_attack_true_positives",
+            "missed_actionable_expected_attacks",
+            "actionable_attack_recall",
             "notes",
         ],
     )
@@ -1369,21 +1949,55 @@ def write_outputs(output_dir: Path, data: dict[str, Any], current_rows: list[dic
 
 
 def run_calibration(
-    normal_date: str,
+    normal_date: str | None = None,
+    normal_manifest: Path | None = None,
     attack_date: str | None = None,
     attack_manifest: Path | None = None,
     output_dir: Path | None = None,
     top: int = 10,
     base_dir: Path = BASE_DIR,
 ) -> tuple[dict[str, Any], dict[str, Path]]:
-    normal_risk_rows, _risk_headers = read_csv_rows(base_dir / "data" / "reports" / f"risk_{normal_date}.csv")
-    _window_rows, window_headers = read_csv_rows(base_dir / "data" / "windows" / f"windows_{normal_date}.csv")
+    if not normal_date and not normal_manifest:
+        raise CalibrationInputError("At least one of normal_date or normal_manifest is required.")
+
+    normal_session_stats: dict[str, Any] = {
+        "normal_sessions_total": 0,
+        "normal_sessions_used": 0,
+        "normal_sessions_excluded": 0,
+        "normal_source_rows": 0,
+        "normal_session_names_used": [],
+        "excluded_session_details": [],
+    }
+    normal_gaps: list[str] = []
+    used_normal_dates: list[str] = []
+    if normal_manifest:
+        (
+            normal_risk_rows,
+            _manifest_risk_headers,
+            normal_session_stats,
+            normal_gaps,
+            used_normal_dates,
+        ) = load_normal_manifest_rows(normal_manifest, base_dir)
+        window_header_sets = []
+        for date in used_normal_dates:
+            _window_rows, headers = read_csv_rows(base_dir / "data" / "windows" / f"windows_{date}.csv")
+            if headers:
+                window_header_sets.append(set(headers))
+        window_headers = sorted(set().union(*window_header_sets)) if window_header_sets else []
+        report_date = normal_date or ",".join(used_normal_dates) or "manifest_scoped"
+    else:
+        report_date = str(normal_date)
+        normal_risk_rows, _risk_headers = read_csv_rows(base_dir / "data" / "reports" / f"risk_{report_date}.csv")
+        _window_rows, window_headers = read_csv_rows(base_dir / "data" / "windows" / f"windows_{report_date}.csv")
+        normal_session_stats["normal_source_rows"] = len(normal_risk_rows)
+
     current_rows = current_policy_rows(normal_risk_rows)
     production_rows = production_policy_rows(normal_risk_rows)
-    sessions, manifest_gaps = load_manifest(attack_manifest, attack_date)
+    sessions, manifest_gaps, attack_session_stats = load_manifest(attack_manifest, attack_date, base_dir)
+    manifest_gaps = normal_gaps + manifest_gaps
     policies = candidate_policies()
     data = summarize_calibration(
-        normal_date,
+        report_date,
         normal_risk_rows,
         window_headers,
         current_rows,
@@ -1391,10 +2005,12 @@ def run_calibration(
         policies,
         sessions,
         manifest_gaps,
+        normal_session_stats,
+        attack_session_stats,
         top,
         base_dir,
     )
-    target_dir = output_dir or base_dir / "data" / "audit" / f"detection_calibration_{normal_date}"
+    target_dir = output_dir or base_dir / "data" / "audit" / f"detection_calibration_{report_date}"
     paths = write_outputs(target_dir, data, current_rows, top)
     return data["summary"], paths
 
@@ -1402,6 +2018,14 @@ def run_calibration(
 def print_console(summary: dict[str, Any], output_dir: Path) -> None:
     print(f"[CALIBRATION] normal_date={summary['normal_date']}")
     print(f"[CALIBRATION] normal_risk_rows={summary['normal_risk_rows']}")
+    print(
+        "[CALIBRATION] normal_sessions="
+        f"{summary['normal_sessions_used']}/{summary['normal_sessions_total']} used"
+    )
+    print(
+        "[CALIBRATION] attack_sessions="
+        f"{summary['attack_sessions_used']}/{summary['attack_sessions_total']} used"
+    )
     print(f"[CALIBRATION] current_suspicious_rows={summary['current_suspicious_rows']}")
     print(f"[CALIBRATION] reproduction_matches_production={summary['offline_reproduction_matches_production']}")
     print(f"[CALIBRATION] expected_167_snapshot_matches={summary['expected_2026_07_26_snapshot_matches']}")
@@ -1417,14 +2041,20 @@ def print_console(summary: dict[str, Any], output_dir: Path) -> None:
 
 def main() -> int:
     args = parse_args()
-    output_dir = args.output_dir or BASE_DIR / "data" / "audit" / f"detection_calibration_{args.normal_date}"
-    summary, _paths = run_calibration(
-        normal_date=args.normal_date,
-        attack_date=args.attack_date,
-        attack_manifest=args.attack_manifest,
-        output_dir=output_dir,
-        top=args.top,
-    )
+    output_slug = args.normal_date or "manifest_scoped"
+    output_dir = args.output_dir or BASE_DIR / "data" / "audit" / f"detection_calibration_{output_slug}"
+    try:
+        summary, _paths = run_calibration(
+            normal_date=args.normal_date,
+            normal_manifest=args.normal_manifest,
+            attack_date=args.attack_date,
+            attack_manifest=args.attack_manifest,
+            output_dir=output_dir,
+            top=args.top,
+        )
+    except CalibrationInputError as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 2
     print_console(summary, output_dir)
     return 0
 
