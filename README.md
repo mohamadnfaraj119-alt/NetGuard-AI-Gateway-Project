@@ -639,6 +639,119 @@ Reports now include a `High Confidence Summary` and `Likely Actionable Events`
 count. Top classified events prioritize higher-confidence non-low-signal labels
 so `LOW_SIGNAL_REVIEW` does not dominate when stronger classifications exist.
 
+## Detection Accuracy Audit
+
+`scripts/detection_accuracy_audit.py` is a read-only audit tool for measuring
+why known-normal or labeled observation windows are being classified as
+suspicious. It reads existing processed, window, and risk report CSV files and
+writes derived audit outputs under `data/audit/detection_accuracy_<date>/`.
+
+Known-normal false-positive audit:
+
+```bash
+python3 scripts/detection_accuracy_audit.py \
+  --date 2026-07-26 \
+  --label normal
+```
+
+Use this audit before any threshold, model, or classification changes. The
+report separates observed facts, inference, and recommended investigation, and
+does not claim that any classification is a confirmed attack.
+
+## Offline Detection Rule Calibration
+
+`scripts/detection_rule_calibrator.py` replays the current classifier and
+candidate rule policies against existing risk reports without changing
+production code. It is intended for evidence gathering after a false-positive
+audit, especially when known-normal traffic shows heuristic-driven suspicious
+classifications.
+
+Known-normal replay:
+
+```bash
+python3 scripts/detection_rule_calibrator.py \
+  --normal-date 2026-07-26
+```
+
+Manifest-scoped normal replay:
+
+```bash
+python3 scripts/detection_rule_calibrator.py \
+  --normal-manifest data/ground_truth/manifest.json
+```
+
+Use `--normal-manifest` when a date contains mixed normal and attack traffic.
+The calibrator then loads only completed `label=normal` sessions with valid
+risk row boundaries, filters them to the recorded source IPs, and deduplicates
+overlapping session rows. Sessions with zero added risk rows, missing source
+IPs, missing risk CSVs, or invalid boundaries are excluded and reported.
+
+Attack retention requires scoped ground truth. Use
+`config/detection_ground_truth_manifest.example.json` as a template and fill in
+verified controlled-test dates, expected classes, source IPs, and time bounds.
+Do not assume that an entire historical date is normal or attack traffic.
+
+Normal traffic alone can show which candidate policies reduce false positives,
+but it cannot prove that a candidate is production-ready. Threshold and model
+changes must wait until normal false-positive evidence is compared with labeled
+attack-retention evidence.
+
+The offline calibrator also reports a narrow
+`validated_portscan_alert_tier`. This keeps row-level review classifications
+visible, but treats only validated `PORT_SCAN` rows with `flag_port_scan` and
+at least 20 unique destination ports as actionable alerts. Other suspicious
+classes remain review-only until class-specific controlled attack evidence
+exists. This staged tier is evidence for a later runtime test only; it does not
+modify production detection, scoring, Telegram filtering, or service behavior.
+
+## Ground-Truth Session Recording
+
+`scripts/ground_truth_session.py` records exact lab-session boundaries for
+normal and controlled attack observations. The recorder captures timestamps,
+source IPs, expected classifications, service readiness, model/source metadata,
+and CSV row boundaries. It never generates attacks, scans, login attempts, DNS
+bursts, or other traffic.
+
+Start and stop a known-normal session:
+
+```bash
+python3 scripts/ground_truth_session.py start \
+  --label normal \
+  --source-ip 192.168.50.95 \
+  --scenario phone_idle_normal \
+  --notes "Known-normal idle phone observation"
+
+python3 scripts/ground_truth_session.py stop
+```
+
+Start and stop a controlled attack session only on owned lab systems:
+
+```bash
+python3 scripts/ground_truth_session.py start \
+  --label attack \
+  --expected-class PORT_SCAN \
+  --source-ip 192.168.50.95 \
+  --scenario controlled_port_scan \
+  --notes "Controlled lab test with exact operator notes"
+
+python3 scripts/ground_truth_session.py stop
+```
+
+Check and export:
+
+```bash
+python3 scripts/ground_truth_session.py status
+python3 scripts/ground_truth_session.py list
+python3 scripts/ground_truth_session.py export \
+  --output config/detection_ground_truth_manifest.local.json
+```
+
+Real session records are stored under `data/ground_truth/` and local exported
+manifests should remain uncommitted. Keep Telegram alerts disabled during
+calibration so alert side effects do not distract from controlled evidence
+collection. Use the exported manifest with
+`scripts/detection_rule_calibrator.py --attack-manifest ...`.
+
 ## Optional Telegram Alerts
 
 `scripts/telegram_alert_notifier.py` can send Telegram notifications for new
@@ -673,6 +786,41 @@ Test and dry run:
 python3 scripts/telegram_alert_notifier.py --test
 python3 scripts/telegram_alert_notifier.py --once --dry-run
 ```
+
+### Validated Telegram Alert Tier
+
+Telegram runtime alerting currently sends only the narrow validated
+`PORT_SCAN` actionable tier. A row is actionable only when the existing
+classifier's final classification is `PORT_SCAN`, `flag_port_scan` is set, and
+`unique_dst_ports_30s >= 20` or `unique_dst_ports_1m >= 20`. Missing or invalid
+evidence fails closed.
+
+Other suspicious classifications remain visible locally as review-only
+telemetry and are not sent to Telegram until class-specific controlled
+ground-truth evidence exists. Offline replay showed 0 actionable false
+positives in 72 labeled normal windows and 100% recall on the validated
+controlled `PORT_SCAN` session. This is narrow staged alerting evidence, not
+full production readiness.
+
+Keep `netguard-telegram-alerts.service` disabled until runtime replay and
+controlled live validation are completed. Do not enable or start the service as
+part of calibration.
+
+Before first service activation, prime the local state so historical actionable
+rows already present in today's risk report are checkpointed but not sent:
+
+```bash
+sudo systemctl disable --now netguard-telegram-alerts.service
+python3 scripts/telegram_alert_notifier.py --dry-run
+python3 scripts/telegram_alert_notifier.py --prime-current
+python3 scripts/telegram_alert_notifier.py --dry-run
+```
+
+`--prime-current` records review-only rows in `reviewed_fingerprints` and
+current actionable `PORT_SCAN` rows in `baseline_fingerprints`. Primed
+actionable rows were not sent, are not added to `sent_fingerprints`, and do not
+consume Telegram cooldown. Keep the service disabled until a new controlled
+`PORT_SCAN` produces a fresh actionable event after priming.
 
 Continuous local run:
 

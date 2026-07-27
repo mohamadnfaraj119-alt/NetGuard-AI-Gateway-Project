@@ -24,3 +24,9 @@ logs/
 # Local secrets
 config/*.env
 !config/*.env.example
+config/*.local.json
+
+# Local ground-truth session records
+data/ground_truth/active_session.json
+data/ground_truth/manifest.json
+data/ground_truth/sessions/
