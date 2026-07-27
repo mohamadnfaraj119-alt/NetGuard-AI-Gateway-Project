@@ -7,6 +7,7 @@ classification layer over today's risk report and only writes local alert state.
 """
 
 import argparse
+import csv
 import hashlib
 import html
 import json
@@ -14,6 +15,8 @@ import logging
 import os
 import sys
 import time
+from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib import parse, request
@@ -29,6 +32,16 @@ COOLDOWN_SECONDS = 10 * 60
 MATERIAL_RISK_INCREASE = 10.0
 BOT_TOKEN_ENV = "NETGUARD_TELEGRAM_BOT_TOKEN"
 CHAT_ID_ENV = "NETGUARD_TELEGRAM_CHAT_ID"
+VALIDATED_ACTIONABLE_CLASS = "PORT_SCAN"
+REVIEW_ONLY_CLASSIFICATIONS = {
+    "SSH_BRUTE_FORCE_OR_LOGIN_PATTERN",
+    "FAILED_CONNECTION_PATTERN",
+    "DNS_ANOMALY",
+    "DOS_LIKE_BURST",
+    "BOT_LIKE_BEHAVIOR",
+    "UNKNOWN_SUSPICIOUS",
+    "LOW_SIGNAL_REVIEW",
+}
 
 if str(BASE_DIR / "scripts") not in sys.path:
     sys.path.insert(0, str(BASE_DIR / "scripts"))
@@ -37,6 +50,15 @@ import attack_classifier  # noqa: E402
 
 
 LOG = logging.getLogger("netguard.telegram_alerts")
+
+
+@dataclass(frozen=True)
+class AlertDecision:
+    actionable: bool
+    review_only: bool
+    reason: str
+    classification: str
+    validated_evidence: dict[str, object]
 
 
 def parse_args() -> argparse.Namespace:
@@ -107,6 +129,28 @@ def event_float(event: dict[str, object], key: str) -> float:
         return 0.0
 
 
+def event_text(event: dict[str, object], key: str) -> str:
+    value = event.get(key)
+    return str(value).strip() if value is not None else ""
+
+
+def event_truthy(event: dict[str, object], key: str) -> bool:
+    return event_text(event, key).lower() in {"1", "true", "yes", "y"}
+
+
+def event_valid_nonnegative_float(event: dict[str, object], key: str) -> float | None:
+    value = event.get(key)
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != number or number < 0 or number in {float("inf"), float("-inf")}:
+        return None
+    return number
+
+
 def read_live_classified_events(day: str | None = None) -> list[dict[str, object]]:
     current_day = day or today_string()
     risk_file = REPORTS_DIR / f"risk_{current_day}.csv"
@@ -115,33 +159,63 @@ def read_live_classified_events(day: str | None = None) -> list[dict[str, object
         return []
 
     try:
-        day_summary = attack_classifier.audit_day(current_day, set())
-    except FileNotFoundError:
-        LOG.info("Live risk report disappeared while reading for %s.", current_day)
+        rows = []
+        suspicious_rows = []
+        with risk_file.open("r", encoding="utf-8", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                rows.append(row)
+                if attack_classifier.is_suspicious_row(row):
+                    suspicious_rows.append(row)
+    except Exception as exc:
+        LOG.error("Could not read live risk report for %s: %s", current_day, sanitized_error(exc))
         return []
+
+    try:
+        suspicious_rows_by_src = Counter(attack_classifier.row_value(row, "src_ip") for row in suspicious_rows)
+        suspicious_rows_by_src.pop("", None)
+        events = []
+        for row in suspicious_rows:
+            event = attack_classifier.classify_row(row, suspicious_rows_by_src, set())
+            enriched = dict(row)
+            enriched.update(event)
+            enriched["date"] = current_day
+            events.append(enriched)
+        return sorted(events, key=attack_classifier.event_sort_key, reverse=True)
     except Exception as exc:
         LOG.error("Could not classify live risk report for %s: %s", current_day, sanitized_error(exc))
         return []
 
-    return attack_classifier.all_events([day_summary])
+
+def telegram_alert_decision(event: dict[str, object]) -> AlertDecision:
+    classification = event_classification(event)
+    evidence: dict[str, object] = {
+        "flag_port_scan": event_text(event, "flag_port_scan"),
+        "unique_dst_ports_30s": event.get("unique_dst_ports_30s"),
+        "unique_dst_ports_1m": event.get("unique_dst_ports_1m"),
+    }
+
+    if not classification:
+        return AlertDecision(False, True, "missing classification", classification, evidence)
+    if classification in REVIEW_ONLY_CLASSIFICATIONS:
+        return AlertDecision(False, True, f"{classification} is review-only", classification, evidence)
+    if classification != VALIDATED_ACTIONABLE_CLASS:
+        return AlertDecision(False, True, f"{classification} is not a validated actionable class", classification, evidence)
+    if not event_truthy(event, "flag_port_scan"):
+        return AlertDecision(False, True, "flag_port_scan is not set", classification, evidence)
+
+    ports_30s = event_valid_nonnegative_float(event, "unique_dst_ports_30s")
+    ports_1m = event_valid_nonnegative_float(event, "unique_dst_ports_1m")
+    if ports_30s is None and ports_1m is None:
+        return AlertDecision(False, True, "validated unique-port evidence is missing or invalid", classification, evidence)
+    if (ports_30s is not None and ports_30s >= 20) or (ports_1m is not None and ports_1m >= 20):
+        evidence["validated_port_threshold"] = "unique_dst_ports_30s>=20 or unique_dst_ports_1m>=20"
+        return AlertDecision(True, False, "validated PORT_SCAN evidence", classification, evidence)
+    return AlertDecision(False, True, "unique destination port evidence is below validated threshold", classification, evidence)
 
 
 def is_alert_eligible(event: dict[str, object]) -> bool:
-    classification = event_classification(event)
-    confidence = event_float(event, "confidence")
-    risk_score = event_float(event, "risk_score")
-
-    if classification == "LOW_SIGNAL_REVIEW":
-        return False
-    if confidence >= 0.65 and risk_score >= 30.0:
-        return True
-    if classification == "DOS_LIKE_BURST" and confidence >= 0.60:
-        return True
-    if classification == "PORT_SCAN" and confidence >= 0.65:
-        return True
-    if classification == "SSH_BRUTE_FORCE_OR_LOGIN_PATTERN" and confidence >= 0.65:
-        return True
-    return False
+    return telegram_alert_decision(event).actionable
 
 
 def stable_fingerprint(event: dict[str, object]) -> str:
@@ -161,7 +235,7 @@ def cooldown_key(event: dict[str, object]) -> str:
 
 
 def empty_state() -> dict[str, object]:
-    return {"sent_fingerprints": {}, "cooldowns": {}}
+    return {"sent_fingerprints": {}, "cooldowns": {}, "reviewed_fingerprints": {}}
 
 
 def load_state(path: Path = STATE_FILE) -> dict[str, object]:
@@ -177,10 +251,13 @@ def load_state(path: Path = STATE_FILE) -> dict[str, object]:
         return empty_state()
     data.setdefault("sent_fingerprints", {})
     data.setdefault("cooldowns", {})
+    data.setdefault("reviewed_fingerprints", {})
     if not isinstance(data["sent_fingerprints"], dict):
         data["sent_fingerprints"] = {}
     if not isinstance(data["cooldowns"], dict):
         data["cooldowns"] = {}
+    if not isinstance(data["reviewed_fingerprints"], dict):
+        data["reviewed_fingerprints"] = {}
     return data
 
 
@@ -205,13 +282,19 @@ def risk_materially_increased(event: dict[str, object], cooldown: dict[str, obje
     return event_float(event, "risk_score") >= previous_risk + MATERIAL_RISK_INCREASE
 
 
+def is_already_reviewed(event: dict[str, object], state: dict[str, object]) -> bool:
+    reviewed_fingerprints = state.get("reviewed_fingerprints", {})
+    return isinstance(reviewed_fingerprints, dict) and stable_fingerprint(event) in reviewed_fingerprints
+
+
 def should_send_event(
     event: dict[str, object],
     state: dict[str, object],
     now: datetime | None = None,
 ) -> tuple[bool, str]:
-    if not is_alert_eligible(event):
-        return False, "not eligible"
+    decision = telegram_alert_decision(event)
+    if not decision.actionable:
+        return False, f"review-only: {decision.reason}"
 
     fingerprint = stable_fingerprint(event)
     sent_fingerprints = state.get("sent_fingerprints", {})
@@ -228,6 +311,18 @@ def should_send_event(
                 return False, "cooldown active"
 
     return True, "eligible"
+
+
+def mark_reviewed(event: dict[str, object], decision: AlertDecision, state: dict[str, object], now: datetime | None = None) -> None:
+    current_time = now or datetime.now()
+    reviewed_fingerprints = state.setdefault("reviewed_fingerprints", {})
+    if isinstance(reviewed_fingerprints, dict):
+        reviewed_fingerprints[stable_fingerprint(event)] = {
+            "reviewed_at": current_time.isoformat(timespec="seconds"),
+            "src_ip": event_src_ip(event),
+            "classification": decision.classification,
+            "reason": decision.reason,
+        }
 
 
 def mark_sent(event: dict[str, object], state: dict[str, object], now: datetime | None = None) -> None:
@@ -266,9 +361,13 @@ def build_message(event: dict[str, object]) -> str:
             f"Time: {html.escape(event_time(event))}",
             f"Confidence: {event_float(event, 'confidence'):.2f}",
             f"Risk score: {event_float(event, 'risk_score'):.2f}",
+            f"Risk level: {html.escape(event_text(event, 'risk_level') or 'n/a')}",
+            f"Unique dst ports 30s: {html.escape(event_text(event, 'unique_dst_ports_30s') or 'n/a')}",
+            f"Unique dst ports 1m: {html.escape(event_text(event, 'unique_dst_ports_1m') or 'n/a')}",
+            f"Connections 30s: {html.escape(event_text(event, 'connections_30s') or 'n/a')}",
             f"Reason: {html.escape(reason)}",
             "",
-            "Status: Preliminary classification for analyst review, not a confirmed attack.",
+            "Status: Validated PORT_SCAN alert tier for analyst review, not a confirmed attack.",
         ]
     )
 
@@ -325,6 +424,7 @@ def process_once(dry_run: bool = False, state_path: Path = STATE_FILE) -> int:
     events = read_live_classified_events()
     eligible_count = 0
     sent_count = 0
+    review_state_dirty = False
 
     token, chat_id = credentials_from_env()
     if not dry_run and (not token or not chat_id):
@@ -332,6 +432,34 @@ def process_once(dry_run: bool = False, state_path: Path = STATE_FILE) -> int:
         return 2
 
     for event in sorted(events, key=lambda item: str(item.get("time", ""))):
+        decision = telegram_alert_decision(event)
+        if decision.review_only:
+            if dry_run:
+                print(
+                    "[DRY-RUN] Review-only Telegram decision: "
+                    f"classification={decision.classification or 'n/a'} "
+                    f"src_ip={event_src_ip(event)} reason={decision.reason}"
+                )
+            else:
+                if is_already_reviewed(event, state):
+                    LOG.debug(
+                        "Skipping already-reviewed Telegram event fingerprint=%s classification=%s src_ip=%s",
+                        stable_fingerprint(event),
+                        decision.classification or "n/a",
+                        event_src_ip(event),
+                    )
+                    continue
+                LOG.info(
+                    "Telegram review-only event fingerprint=%s reason=%s classification=%s src_ip=%s",
+                    stable_fingerprint(event),
+                    decision.reason,
+                    decision.classification or "n/a",
+                    event_src_ip(event),
+                )
+                mark_reviewed(event, decision, state)
+                review_state_dirty = True
+            continue
+
         should_send, reason = should_send_event(event, state)
         if not should_send:
             LOG.debug(
@@ -346,6 +474,10 @@ def process_once(dry_run: bool = False, state_path: Path = STATE_FILE) -> int:
         eligible_count += 1
         message = build_message(event)
         if dry_run:
+            print(
+                "[DRY-RUN] Actionable Telegram decision: "
+                f"classification={decision.classification} src_ip={event_src_ip(event)} reason={decision.reason}"
+            )
             print("[DRY-RUN] Would send Telegram alert:")
             print(message)
             print(f"Fingerprint: {stable_fingerprint(event)}")
@@ -357,12 +489,19 @@ def process_once(dry_run: bool = False, state_path: Path = STATE_FILE) -> int:
             sent_count += 1
             try:
                 save_state(state, state_path)
+                review_state_dirty = False
             except OSError as exc:
                 LOG.error("Telegram alert sent but state could not be saved: %s", sanitized_error(exc))
+                review_state_dirty = True
 
     if dry_run:
         print(f"[RESULT] dry_run eligible_alerts={eligible_count}")
     else:
+        if review_state_dirty:
+            try:
+                save_state(state, state_path)
+            except OSError as exc:
+                LOG.error("Telegram review-only state could not be saved: %s", sanitized_error(exc))
         LOG.info("Telegram alert check complete: eligible=%s sent=%s", eligible_count, sent_count)
     return 0
 

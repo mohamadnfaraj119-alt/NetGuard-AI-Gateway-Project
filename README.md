@@ -787,6 +787,25 @@ python3 scripts/telegram_alert_notifier.py --test
 python3 scripts/telegram_alert_notifier.py --once --dry-run
 ```
 
+### Validated Telegram Alert Tier
+
+Telegram runtime alerting currently sends only the narrow validated
+`PORT_SCAN` actionable tier. A row is actionable only when the existing
+classifier's final classification is `PORT_SCAN`, `flag_port_scan` is set, and
+`unique_dst_ports_30s >= 20` or `unique_dst_ports_1m >= 20`. Missing or invalid
+evidence fails closed.
+
+Other suspicious classifications remain visible locally as review-only
+telemetry and are not sent to Telegram until class-specific controlled
+ground-truth evidence exists. Offline replay showed 0 actionable false
+positives in 72 labeled normal windows and 100% recall on the validated
+controlled `PORT_SCAN` session. This is narrow staged alerting evidence, not
+full production readiness.
+
+Keep `netguard-telegram-alerts.service` disabled until runtime replay and
+controlled live validation are completed. Do not enable or start the service as
+part of calibration.
+
 Continuous local run:
 
 ```bash
