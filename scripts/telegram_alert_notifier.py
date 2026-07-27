@@ -81,6 +81,11 @@ def parse_args() -> argparse.Namespace:
         help="Send one harmless Telegram test notification.",
     )
     parser.add_argument(
+        "--prime-current",
+        action="store_true",
+        help="Checkpoint current live events without sending Telegram messages.",
+    )
+    parser.add_argument(
         "--interval",
         type=positive_interval,
         default=DEFAULT_INTERVAL_SECONDS,
@@ -235,7 +240,12 @@ def cooldown_key(event: dict[str, object]) -> str:
 
 
 def empty_state() -> dict[str, object]:
-    return {"sent_fingerprints": {}, "cooldowns": {}, "reviewed_fingerprints": {}}
+    return {
+        "sent_fingerprints": {},
+        "cooldowns": {},
+        "reviewed_fingerprints": {},
+        "baseline_fingerprints": {},
+    }
 
 
 def load_state(path: Path = STATE_FILE) -> dict[str, object]:
@@ -252,12 +262,15 @@ def load_state(path: Path = STATE_FILE) -> dict[str, object]:
     data.setdefault("sent_fingerprints", {})
     data.setdefault("cooldowns", {})
     data.setdefault("reviewed_fingerprints", {})
+    data.setdefault("baseline_fingerprints", {})
     if not isinstance(data["sent_fingerprints"], dict):
         data["sent_fingerprints"] = {}
     if not isinstance(data["cooldowns"], dict):
         data["cooldowns"] = {}
     if not isinstance(data["reviewed_fingerprints"], dict):
         data["reviewed_fingerprints"] = {}
+    if not isinstance(data["baseline_fingerprints"], dict):
+        data["baseline_fingerprints"] = {}
     return data
 
 
@@ -287,6 +300,11 @@ def is_already_reviewed(event: dict[str, object], state: dict[str, object]) -> b
     return isinstance(reviewed_fingerprints, dict) and stable_fingerprint(event) in reviewed_fingerprints
 
 
+def is_baselined(event: dict[str, object], state: dict[str, object]) -> bool:
+    baseline_fingerprints = state.get("baseline_fingerprints", {})
+    return isinstance(baseline_fingerprints, dict) and stable_fingerprint(event) in baseline_fingerprints
+
+
 def should_send_event(
     event: dict[str, object],
     state: dict[str, object],
@@ -300,6 +318,9 @@ def should_send_event(
     sent_fingerprints = state.get("sent_fingerprints", {})
     if isinstance(sent_fingerprints, dict) and fingerprint in sent_fingerprints:
         return False, "already sent"
+
+    if is_baselined(event, state):
+        return False, "primed historical baseline event"
 
     current_time = now or datetime.now()
     cooldowns = state.get("cooldowns", {})
@@ -321,6 +342,19 @@ def mark_reviewed(event: dict[str, object], decision: AlertDecision, state: dict
             "reviewed_at": current_time.isoformat(timespec="seconds"),
             "src_ip": event_src_ip(event),
             "classification": decision.classification,
+            "reason": decision.reason,
+        }
+
+
+def mark_baselined(event: dict[str, object], decision: AlertDecision, state: dict[str, object], now: datetime | None = None) -> None:
+    current_time = now or datetime.now()
+    baseline_fingerprints = state.setdefault("baseline_fingerprints", {})
+    if isinstance(baseline_fingerprints, dict):
+        baseline_fingerprints[stable_fingerprint(event)] = {
+            "primed_at": current_time.isoformat(timespec="seconds"),
+            "src_ip": event_src_ip(event),
+            "classification": decision.classification,
+            "event_time": event_time(event),
             "reason": decision.reason,
         }
 
@@ -506,6 +540,52 @@ def process_once(dry_run: bool = False, state_path: Path = STATE_FILE) -> int:
     return 0
 
 
+def prime_current(state_path: Path = STATE_FILE) -> int:
+    state = load_state(state_path)
+    events = read_live_classified_events()
+    actionable_baselined = 0
+    review_checkpointed = 0
+    unchanged = 0
+    state_dirty = False
+
+    for event in sorted(events, key=lambda item: str(item.get("time", ""))):
+        decision = telegram_alert_decision(event)
+        if decision.review_only:
+            if is_already_reviewed(event, state):
+                unchanged += 1
+                continue
+            mark_reviewed(event, decision, state)
+            review_checkpointed += 1
+            state_dirty = True
+            continue
+
+        if decision.actionable:
+            if is_baselined(event, state):
+                unchanged += 1
+                continue
+            mark_baselined(event, decision, state)
+            actionable_baselined += 1
+            state_dirty = True
+            continue
+
+        unchanged += 1
+
+    if state_dirty:
+        try:
+            save_state(state, state_path)
+        except OSError as exc:
+            LOG.error("Telegram prime-current state could not be saved: %s", sanitized_error(exc))
+            return 1
+
+    print(
+        "[RESULT] prime_current "
+        f"actionable_baselined={actionable_baselined} "
+        f"review_checkpointed={review_checkpointed} "
+        f"unchanged={unchanged}"
+    )
+    return 0
+
+
 def send_test_message() -> int:
     token, chat_id = credentials_from_env()
     if not token or not chat_id:
@@ -540,6 +620,8 @@ def main() -> int:
 
     if args.test:
         return send_test_message()
+    if args.prime_current:
+        return prime_current()
     if args.once or args.dry_run:
         return process_once(dry_run=args.dry_run)
     return run_forever(args.interval)

@@ -806,6 +806,22 @@ Keep `netguard-telegram-alerts.service` disabled until runtime replay and
 controlled live validation are completed. Do not enable or start the service as
 part of calibration.
 
+Before first service activation, prime the local state so historical actionable
+rows already present in today's risk report are checkpointed but not sent:
+
+```bash
+sudo systemctl disable --now netguard-telegram-alerts.service
+python3 scripts/telegram_alert_notifier.py --dry-run
+python3 scripts/telegram_alert_notifier.py --prime-current
+python3 scripts/telegram_alert_notifier.py --dry-run
+```
+
+`--prime-current` records review-only rows in `reviewed_fingerprints` and
+current actionable `PORT_SCAN` rows in `baseline_fingerprints`. Primed
+actionable rows were not sent, are not added to `sent_fingerprints`, and do not
+consume Telegram cooldown. Keep the service disabled until a new controlled
+`PORT_SCAN` produces a fresh actionable event after priming.
+
 Continuous local run:
 
 ```bash

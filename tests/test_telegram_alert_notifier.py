@@ -363,6 +363,167 @@ class TelegramAlertNotifierTests(unittest.TestCase):
         save_mock.assert_not_called()
         send_mock.assert_not_called()
 
+    def test_prime_current_performs_no_telegram_request_and_requires_no_credentials(self):
+        actionable = event()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(
+                notifier, "read_live_classified_events", return_value=[actionable]
+            ), mock.patch.object(notifier, "send_telegram_message") as send_mock, redirect_stdout(
+                io.StringIO()
+            ) as stdout:
+                result = notifier.prime_current(state_path=state_path)
+
+        self.assertEqual(result, 0)
+        self.assertIn("[RESULT] prime_current actionable_baselined=1", stdout.getvalue())
+        send_mock.assert_not_called()
+
+    def test_prime_current_places_actionable_events_in_baseline_only(self):
+        actionable = event()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            with mock.patch.object(notifier, "read_live_classified_events", return_value=[actionable]), redirect_stdout(
+                io.StringIO()
+            ):
+                result = notifier.prime_current(state_path=state_path)
+            state = notifier.load_state(state_path)
+
+        self.assertEqual(result, 0)
+        self.assertIn(notifier.stable_fingerprint(actionable), state["baseline_fingerprints"])
+        self.assertEqual(state["sent_fingerprints"], {})
+        self.assertEqual(state["cooldowns"], {})
+
+    def test_prime_current_checkpoints_review_only_events(self):
+        review_event = event(flag_port_scan="0")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            with mock.patch.object(notifier, "read_live_classified_events", return_value=[review_event]), redirect_stdout(
+                io.StringIO()
+            ):
+                result = notifier.prime_current(state_path=state_path)
+            state = notifier.load_state(state_path)
+
+        self.assertEqual(result, 0)
+        self.assertIn(notifier.stable_fingerprint(review_event), state["reviewed_fingerprints"])
+        self.assertEqual(state["baseline_fingerprints"], {})
+        self.assertEqual(state["sent_fingerprints"], {})
+        self.assertEqual(state["cooldowns"], {})
+
+    def test_prime_current_saves_once_for_multiple_primed_events(self):
+        events = [
+            event(time_value="2026-07-22 15:13:02"),
+            event(time_value="2026-07-22 15:14:02"),
+            event(flag_port_scan="0", time_value="2026-07-22 15:15:02"),
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            with mock.patch.object(
+                notifier, "read_live_classified_events", return_value=events
+            ), mock.patch.object(notifier, "save_state", wraps=notifier.save_state) as save_mock, redirect_stdout(
+                io.StringIO()
+            ):
+                result = notifier.prime_current(state_path=state_path)
+            state = notifier.load_state(state_path)
+
+        self.assertEqual(result, 0)
+        self.assertEqual(save_mock.call_count, 1)
+        self.assertEqual(len(state["baseline_fingerprints"]), 2)
+        self.assertEqual(len(state["reviewed_fingerprints"]), 1)
+
+    def test_second_identical_prime_current_is_idempotent_and_no_write(self):
+        events = [
+            event(time_value="2026-07-22 15:13:02"),
+            event(flag_port_scan="0", time_value="2026-07-22 15:14:02"),
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            with mock.patch.object(notifier, "read_live_classified_events", return_value=events), redirect_stdout(
+                io.StringIO()
+            ):
+                self.assertEqual(notifier.prime_current(state_path=state_path), 0)
+            before = state_path.read_text(encoding="utf-8")
+            with mock.patch.object(
+                notifier, "read_live_classified_events", return_value=events
+            ), mock.patch.object(notifier, "save_state") as save_mock, redirect_stdout(
+                io.StringIO()
+            ) as stdout:
+                result = notifier.prime_current(state_path=state_path)
+            after = state_path.read_text(encoding="utf-8")
+
+        self.assertEqual(result, 0)
+        self.assertIn("actionable_baselined=0", stdout.getvalue())
+        self.assertIn("review_checkpointed=0", stdout.getvalue())
+        self.assertIn("unchanged=2", stdout.getvalue())
+        self.assertEqual(before, after)
+        save_mock.assert_not_called()
+
+    def test_exact_primed_actionable_event_is_skipped_by_should_send_event(self):
+        actionable = event()
+        state = notifier.empty_state()
+        notifier.mark_baselined(actionable, notifier.telegram_alert_decision(actionable), state)
+
+        self.assertEqual(
+            notifier.should_send_event(actionable, state),
+            (False, "primed historical baseline event"),
+        )
+        self.assertEqual(state["sent_fingerprints"], {})
+        self.assertEqual(state["cooldowns"], {})
+
+    def test_future_changed_actionable_fingerprint_remains_eligible_after_prime(self):
+        historical = event(time_value="2026-07-22 15:13:02")
+        future = event(time_value="2026-07-22 15:20:02")
+        state = notifier.empty_state()
+        notifier.mark_baselined(historical, notifier.telegram_alert_decision(historical), state)
+
+        self.assertEqual(notifier.should_send_event(future, state), (True, "eligible"))
+
+    def test_baseline_suppression_happens_before_cooldown(self):
+        actionable = event(risk_score=40.0)
+        state = notifier.empty_state()
+        notifier.mark_baselined(actionable, notifier.telegram_alert_decision(actionable), state)
+        state["cooldowns"][notifier.cooldown_key(actionable)] = {
+            "last_sent_at": datetime.now().isoformat(timespec="seconds"),
+            "risk_score": 40.0,
+        }
+
+        self.assertEqual(
+            notifier.should_send_event(actionable, state),
+            (False, "primed historical baseline event"),
+        )
+
+    def test_old_state_files_without_baseline_fingerprints_load_correctly(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            state_path.write_text(
+                '{"sent_fingerprints": {}, "cooldowns": {}, "reviewed_fingerprints": {}}\n',
+                encoding="utf-8",
+            )
+            state = notifier.load_state(state_path)
+
+        self.assertEqual(state["baseline_fingerprints"], {})
+
+    def test_dry_run_honors_baseline_without_state_write_or_network(self):
+        actionable = event()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_path = Path(tmpdir) / "state.json"
+            state = notifier.empty_state()
+            notifier.mark_baselined(actionable, notifier.telegram_alert_decision(actionable), state)
+            notifier.save_state(state, state_path)
+            before = state_path.read_text(encoding="utf-8")
+            with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(
+                notifier, "read_live_classified_events", return_value=[actionable]
+            ), mock.patch.object(notifier, "send_telegram_message") as send_mock, mock.patch.object(
+                notifier, "save_state"
+            ) as save_mock, redirect_stdout(io.StringIO()) as stdout:
+                result = notifier.process_once(dry_run=True, state_path=state_path)
+            after = state_path.read_text(encoding="utf-8")
+
+        self.assertEqual(result, 0)
+        self.assertIn("[RESULT] dry_run eligible_alerts=0", stdout.getvalue())
+        self.assertEqual(before, after)
+        save_mock.assert_not_called()
+        send_mock.assert_not_called()
+
     def test_actionable_message_contains_validated_portscan_evidence(self):
         message = notifier.build_message(
             event(unique_dst_ports_30s="101", unique_dst_ports_1m="102", connections_30s="120")
