@@ -349,9 +349,15 @@ def _build_explanation(row: pd.Series, top_contributors: list, level: str) -> st
         if name == "anomaly":
             parts.append(f"نمط سلوكي شاذ (IF score: {row.get('anomaly_score', 0):.3f})")
         elif name == "scan":
-            ports   = row.get("unique_dst_ports_30s", 0)
-            entropy = row.get("port_entropy_30s", 0)
-            parts.append(f"مسح منافذ محتمل ({ports:.0f} منفذ، entropy={entropy:.3f})")
+            ports = float(row.get("unique_dst_ports_30s", 0) or 0)
+            ports_1m = float(row.get("unique_dst_ports_1m", 0) or 0)
+            entropy = float(row.get("port_entropy_30s", 0) or 0)
+            flag_raw = row.get("flag_port_scan", "")
+            flag = str(flag_raw).strip().lower() in {"1", "1.0", "true", "yes", "y"}
+            if flag and (ports >= 20 or ports_1m >= 20):
+                parts.append(f"مسح منافذ محتمل ({ports:.0f} منفذ، entropy={entropy:.3f})")
+            else:
+                parts.append(f"تنوع منافذ أعلى من المعتاد للمراجعة ({ports:.0f} منفذ، entropy={entropy:.3f})")
         elif name == "burst":
             conns = row.get("connections_30s", 0)
             burst = row.get("burst_score_30s", 0)

@@ -964,17 +964,20 @@
               <div class="mini-card"><div class="mini-label">Processed rows</div><div class="mini-value" id="live-processed-rows">-</div><div class="mini-copy">data/processed baseline for today</div></div>
               <div class="mini-card"><div class="mini-label">Window rows</div><div class="mini-value" id="live-windows-rows">-</div><div class="mini-copy">data/windows output for today</div></div>
               <div class="mini-card"><div class="mini-label">Risk rows</div><div class="mini-value" id="live-risk-rows">-</div><div class="mini-copy">data/reports risk report for today</div></div>
-              <div class="mini-card"><div class="mini-label">Suspicious rows</div><div class="mini-value" id="live-suspicious-rows">-</div><div class="mini-copy">Detected from today&apos;s risk report</div></div>
+              <div class="mini-card"><div class="mini-label">Normal rows</div><div class="mini-value" id="live-normal-rows">-</div><div class="mini-copy">Rows with no preliminary review classification</div></div>
+              <div class="mini-card"><div class="mini-label">Review candidate rows</div><div class="mini-value" id="live-suspicious-rows">-</div><div class="mini-copy">Preliminary review rows from today&apos;s risk report</div></div>
+              <div class="mini-card"><div class="mini-label">Traffic split</div><div class="mini-value" id="live-normal-percent">-</div><div class="mini-copy" id="live-review-percent">Review candidates: -</div></div>
               <div class="mini-card"><div class="mini-label">Live local sources</div><div class="mini-value" id="live-local-sources">-</div><div class="mini-copy">192.168.50.x sources observed today</div></div>
             </div>
-            <p class="section-note"><strong>Live Suspicious Events.</strong> Classifications are preliminary and explainable. They indicate suspicious behavior for analyst review, not confirmed attacks.</p>
+            <p class="section-note"><strong>Live Review Events.</strong> Classifications are preliminary and explainable. They are review-only labels, not confirmed attacks. Telegram can trigger only from the separately validated actionable alert tier.</p>
+            <p class="section-note">This table shows review candidates only. Normal rows are included in the summary counts but omitted from the table.</p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>Time</th>
                     <th>Source IP</th>
-                    <th>Classification</th>
+                    <th>Preliminary Classification</th>
                     <th>Confidence</th>
                     <th>Risk Score</th>
                     <th>Anomaly</th>
@@ -1101,7 +1104,7 @@
                       <tr>
                         <th>Time</th>
                         <th>Source IP</th>
-                        <th>Classification</th>
+                        <th>Preliminary Classification</th>
                         <th>Confidence</th>
                         <th>Risk Score</th>
                         <th>Reason</th>
@@ -1194,7 +1197,7 @@
               <div class="panel-body">
                 <div class="future-grid">
                   <div class="mini-card"><div class="mini-label">Grafana monitoring</div><div class="mini-copy">Future operational dashboards after durable metrics storage.</div></div>
-                  <div class="mini-card"><div class="mini-label">Telegram alerts</div><div class="mini-copy">Future notification channel after alert policy review.</div></div>
+                  <div class="mini-card"><div class="mini-label">Telegram alerts</div><div class="mini-copy">Only the separately validated actionable alert tier can trigger Telegram.</div></div>
                   <div class="mini-card"><div class="mini-label">Multi-sensor support</div><div class="mini-copy">Future coverage for multiple network observation points.</div></div>
                   <div class="mini-card"><div class="mini-label">Kafka streaming pipeline</div><div class="mini-copy">Future event transport for larger deployments.</div></div>
                   <div class="mini-card"><div class="mini-label">Reviewed-label classifier</div><div class="mini-copy">ML attack classifier after trusted analyst labels exist.</div></div>
@@ -1271,7 +1274,10 @@
     const liveProcessedRows = document.getElementById("live-processed-rows");
     const liveWindowsRows = document.getElementById("live-windows-rows");
     const liveRiskRows = document.getElementById("live-risk-rows");
+    const liveNormalRows = document.getElementById("live-normal-rows");
     const liveSuspiciousRows = document.getElementById("live-suspicious-rows");
+    const liveNormalPercent = document.getElementById("live-normal-percent");
+    const liveReviewPercent = document.getElementById("live-review-percent");
     const liveLocalSources = document.getElementById("live-local-sources");
     const liveThreatsBody = document.getElementById("live-threats-body");
     const gatewayCard = document.getElementById("gateway-card");
@@ -1399,6 +1405,15 @@
       return Number.isFinite(number) ? number.toLocaleString() : "-";
     }
 
+    function formatPercent(part, whole) {
+      const numerator = Number(part || 0);
+      const denominator = Number(whole || 0);
+      if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+        return "0.0%";
+      }
+      return `${((numerator / denominator) * 100).toFixed(1)}%`;
+    }
+
     function renderLiveMonitoring(statusPayload, liveSummary, liveThreats, apiOnline) {
       const gateway = statusPayload && typeof statusPayload === "object" ? statusPayload : null;
       const gatewayResult = gateway ? gateway.final_result : "Unavailable";
@@ -1407,7 +1422,9 @@
       const traffic = liveSummary && liveSummary.traffic_summary ? liveSummary.traffic_summary : {};
       const fileCount = ["processed_today", "windows_today", "risk_today"]
         .filter((key) => files[key]).length;
+      const riskRows = Number(traffic.risk_rows || 0);
       const suspicious = Number(traffic.suspicious_rows || 0);
+      const normalRows = Math.max(0, riskRows - suspicious);
       const message = liveThreats?.message || liveSummary?.status_message || "Waiting for live pipeline output";
       const liveState = fileCount === 0 ? "warn" : suspicious > 0 ? "warn" : "ok";
       const localSources = Array.isArray(traffic.local_source_ips)
@@ -1421,8 +1438,11 @@
       setText(liveMonitoringNote, `${message}. Live data is read from today&apos;s local pipeline files only; saved demo evidence remains separate below.`.replace("&apos;", "'"));
       setText(liveProcessedRows, formatCount(traffic.processed_rows));
       setText(liveWindowsRows, formatCount(traffic.windows_rows));
-      setText(liveRiskRows, formatCount(traffic.risk_rows));
+      setText(liveRiskRows, formatCount(riskRows));
+      setText(liveNormalRows, formatCount(normalRows));
       setText(liveSuspiciousRows, formatCount(traffic.suspicious_rows));
+      setText(liveNormalPercent, `Normal traffic: ${formatPercent(normalRows, riskRows)}`);
+      setText(liveReviewPercent, `Review candidates: ${formatPercent(suspicious, riskRows)}`);
       setText(liveLocalSources, localSources.length ? localSources.join(", ") : "-");
       cardState(apiCard, apiOnline ? "ok" : "fail");
 
@@ -1437,7 +1457,7 @@
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.colSpan = 7;
-        cell.textContent = liveThreats?.message || "Monitoring active - no live suspicious events detected yet";
+        cell.textContent = liveThreats?.message || "Monitoring active - no live review candidates detected yet";
         row.appendChild(cell);
         liveThreatsBody.appendChild(row);
         return;
