@@ -119,7 +119,7 @@ class DetectionAccuracyAuditTests(unittest.TestCase):
         self.assertEqual(summary["risk_row_count"], 2)
         self.assertEqual(summary["suspicious_row_count"], 1)
         self.assertEqual(summary["estimated_false_positive_rate"], 50.0)
-        self.assertEqual(summary["top_false_positive_class"], "PORT_SCAN")
+        self.assertEqual(summary["top_false_positive_class"], "UNKNOWN_SUSPICIOUS")
 
     def test_empty_suspicious_set(self):
         _root, _date, summary, _paths = self.run_temp_audit([row(1, risk=1), row(2, risk=2)])
@@ -170,7 +170,7 @@ class DetectionAccuracyAuditTests(unittest.TestCase):
         sequences = summary["repeated_sequences"]
         self.assertEqual(len(sequences), 1)
         self.assertEqual(sequences[0]["src_ip"], "192.168.50.95")
-        self.assertEqual(sequences[0]["classification"], "PORT_SCAN")
+        self.assertEqual(sequences[0]["classification"], "BOT_LIKE_BEHAVIOR")
         self.assertEqual(sequences[0]["count"], 3)
         self.assertEqual(sequences[0]["longest_consecutive_sequence"], 2)
 

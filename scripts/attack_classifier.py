@@ -333,6 +333,7 @@ def classify_row(
     failed = row_float(row, "failed_conn_rate_30s") or 0.0
     dns = row_float(row, "dns_rate_30s") or 0.0
     unique_ports = row_float(row, "unique_dst_ports_30s") or 0.0
+    unique_ports_1m = row_float(row, "unique_dst_ports_1m") or 0.0
     unique_ips = row_float(row, "unique_dst_ips_30s") or 0.0
     bytes_rate = row_float(row, "bytes_per_sec_30s", "bytes_per_sec") or 0.0
     burst = row_float(row, "burst_score_30s", "burst_score") or 0.0
@@ -360,18 +361,18 @@ def classify_row(
     reasons = []
     if bool_flag(row, "flag_port_scan"):
         reasons.append("flag_port_scan is set")
-    if unique_ports >= 10:
-        reasons.append(f"unique_dst_ports_30s={unique_ports:.0f} >= 10")
-    if unique_ips >= 10:
-        reasons.append(f"unique_dst_ips_30s={unique_ips:.0f} >= 10")
+    if unique_ports >= 20:
+        reasons.append(f"unique_dst_ports_30s={unique_ports:.0f} >= 20")
+    if unique_ports_1m >= 20:
+        reasons.append(f"unique_dst_ports_1m={unique_ports_1m:.0f} >= 20")
     if connections >= 80 and failed >= 0.3:
         reasons.append(
             f"connections_30s={connections:.0f} with failed_conn_rate_30s={failed:.2f}"
         )
     if risk >= 30 and connections >= 50:
         reasons.append(f"risk_score={risk:.2f} with elevated connections")
-    scan_evidence = (unique_ports >= 10 or unique_ips >= 10) and (connections >= 50 or failed >= 0.3 or risk >= 20)
-    if bool_flag(row, "flag_port_scan") or scan_evidence:
+    scan_evidence = bool_flag(row, "flag_port_scan") and (unique_ports >= 20 or unique_ports_1m >= 20)
+    if scan_evidence:
         candidates.append(("PORT_SCAN", confidence(0.58, reasons, 0.9), reasons))
 
     service_context = " ".join([service, proto, row_value(row, "protocol")]).lower()

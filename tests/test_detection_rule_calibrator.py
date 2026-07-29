@@ -153,13 +153,23 @@ class DetectionRuleCalibratorTests(unittest.TestCase):
         return tmp, root, date
 
     def test_exact_reproduction_of_synthetic_current_policy(self):
+        port_scan_row = make_row(
+            6,
+            src_ip="192.168.50.95",
+            unique_ports=20,
+            unique_ips=12,
+            connections=50,
+            failed=0.3,
+            risk=25,
+        )
+        port_scan_row["flag_port_scan"] = "1"
         rows = [
             make_row(1, failed=1.0),
             make_row(2, failed=1.0),
             make_row(3, failed=1.0),
             make_row(4, failed=1.0),
             make_row(5, failed=1.0),
-            make_row(6, src_ip="192.168.50.95", unique_ips=12, connections=50, failed=0.3, risk=25),
+            port_scan_row,
         ]
         tmp, root, date = self.make_tree(rows)
         self.addCleanup(tmp.cleanup)
