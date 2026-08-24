@@ -6,19 +6,21 @@
 ## Architecture
 Internet
 ↓
-Main Router (192.168.68.55)
+Main Router / WAN Gateway (192.168.1.1)
 ↓
-Ubuntu Gateway (192.168.68.13)
-├── Zeek 8.2.0        — Traffic capture
-├── collector.py      — Parse + filter + store
-├── window_engine.py  — Behavioral features
-├── anomaly_model.py  — Isolation Forest
-├── signature_model.py— XGBoost
-└── risk_engine.py    — Risk Score 0-100
+Ubuntu NetGuard Gateway
+├── WAN: enp0s31f6 (validated address: 192.168.1.103/24)
+├── LAN: enx00e04c6817c4 (gateway: 192.168.50.1/24)
+├── Zeek 8.2.0         — Traffic capture
+├── collector.py       — Parse + filter + store
+├── window_engine.py   — Behavioral features
+├── anomaly_model.py   — Isolation Forest
+├── signature_model.py — XGBoost experimental / historical classifier
+└── risk_engine.py     — Risk Score 0–100
 ↓
-TP-Link Access Point
-↓
-Home Devices (192.168.1.x)
+TP-Link TL-WR841N Access Point (192.168.50.60)
+├── Windows controlled-test host (192.168.50.109)
+└── TECNO normal-traffic phone (192.168.50.95)
 
 ## Stack
 
@@ -152,7 +154,7 @@ Verified on branch `v7.6-self-adaptive-gateway` at stable tag
 - Reboot test passed.
 - Final scan test after reboot generated a `wan_port_scan` alert.
 
-Verified alert fields:
+Historical v7.6 alert evidence (preserved verbatim from the earlier lab topology):
 
 | Field | Value |
 |-------|-------|
